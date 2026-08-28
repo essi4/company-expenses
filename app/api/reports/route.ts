@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+
 export const dynamic = "force-dynamic";
+
 type PurchaseRow = {
   id: number;
   date: string;
@@ -23,41 +25,78 @@ type PaymentRow = {
   notes: string | null;
 };
 
-function getToday() {
-  const now = new Date();
-
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
 }
 
-function getStartOfWeek() {
+function toEnglishDigits(value: string) {
+  return value.replace(/[۰-۹]/g, (digit) =>
+    String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))
+  );
+}
+
+function normalizeDate(value: unknown) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return toEnglishDigits(value)
+    .trim()
+    .replace(/\//g, "-")
+    .replace(/\./g, "-")
+    .split(" ")[0];
+}
+
+function getTodayGregorian() {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${pad2(
+    now.getMonth() + 1
+  )}-${pad2(now.getDate())}`;
+}
+
+function getStartOfMonthGregorian() {
+  const now = new Date();
+
+  return `${now.getFullYear()}-${pad2(
+    now.getMonth() + 1
+  )}-01`;
+}
+
+function getStartOfWeekGregorian() {
   const now = new Date();
 
   const day = now.getDay();
 
+  // Monday = 1, Sunday = 0
   const diff = day === 0 ? 6 : day - 1;
 
   const start = new Date(now);
 
-  start.setDate(now.getDate() - diff);
+  start.setDate(start.getDate() - diff);
 
-  const year = start.getFullYear();
-  const month = String(start.getMonth() + 1).padStart(2, "0");
-  const date = String(start.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${date}`;
+  return `${start.getFullYear()}-${pad2(
+    start.getMonth() + 1
+  )}-${pad2(start.getDate())}`;
 }
 
-function getStartOfMonth() {
-  const now = new Date();
+function normalizeAmount(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
 
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  if (typeof value === "string") {
+    const normalized = toEnglishDigits(value)
+      .replace(/,/g, "")
+      .replace(/٬/g, "")
+      .trim();
 
-  return `${year}-${month}-01`;
+    const number = Number(normalized);
+
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  return 0;
 }
 
 export async function GET(request: Request) {
@@ -66,17 +105,28 @@ export async function GET(request: Request) {
 
     const range = searchParams.get("range") || "month";
 
-    let startDate = getStartOfMonth();
+    let startDate = getStartOfMonthGregorian();
 
     if (range === "today") {
-      startDate = getToday();
+      startDate = getTodayGregorian();
+    } else if (range === "week") {
+      startDate = getStartOfWeekGregorian();
+    } else if (range === "month") {
+      startDate = getStartOfMonthGregorian();
     }
 
-    if (range === "week") {
-      startDate = getStartOfWeek();
-    }
+    const endDate = getTodayGregorian();
 
-    const endDate = getToday();
+    const dateSql = `
+      replace(
+        replace(
+          replace(date, '/', '-'),
+          '.', '-'
+        ),
+        ' ',
+        ''
+      )
+    `;
 
     const purchases = db
       .prepare(`
@@ -91,9 +141,12 @@ export async function GET(request: Request) {
           notes,
           status
         FROM purchases
-        WHERE date >= ?
-          AND date <= ?
-        ORDER BY date DESC, id DESC
+        WHERE
+          ${dateSql} >= ?
+          AND ${dateSql} <= ?
+        ORDER BY
+          ${dateSql} DESC,
+          id DESC
       `)
       .all(startDate, endDate) as PurchaseRow[];
 
@@ -108,23 +161,45 @@ export async function GET(request: Request) {
           description,
           notes
         FROM payments
-        WHERE date >= ?
-          AND date <= ?
-        ORDER BY date DESC, id DESC
+        WHERE
+          ${dateSql} >= ?
+          AND ${dateSql} <= ?
+        ORDER BY
+          ${dateSql} DESC,
+          id DESC
       `)
       .all(startDate, endDate) as PaymentRow[];
 
-    const purchaseTotal = purchases.reduce(
-      (sum, item) => sum + Number(item.amount || 0),
-      0
+    const normalizedPurchases = purchases.map(
+      (item) => ({
+        ...item,
+        date: normalizeDate(item.date),
+        amount: normalizeAmount(item.amount),
+      })
     );
 
-    const paymentTotal = payments.reduce(
-      (sum, item) => sum + Number(item.amount || 0),
-      0
+    const normalizedPayments = payments.map(
+      (item) => ({
+        ...item,
+        date: normalizeDate(item.date),
+        amount: normalizeAmount(item.amount),
+      })
     );
 
-    const balance = purchaseTotal - paymentTotal;
+    const purchaseTotal =
+      normalizedPurchases.reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+
+    const paymentTotal =
+      normalizedPayments.reduce(
+        (sum, item) => sum + item.amount,
+        0
+      );
+
+    const balance =
+      purchaseTotal - paymentTotal;
 
     return NextResponse.json({
       success: true,
@@ -132,24 +207,34 @@ export async function GET(request: Request) {
       startDate,
       endDate,
       summary: {
-        purchaseCount: purchases.length,
+        purchaseCount:
+          normalizedPurchases.length,
         purchaseTotal,
-        paymentCount: payments.length,
+        paymentCount:
+          normalizedPayments.length,
         paymentTotal,
         balance,
       },
-      purchases,
-      payments,
+      purchases: normalizedPurchases,
+      payments: normalizedPayments,
     });
   } catch (error) {
-    console.error("GET reports error:", error);
+    console.error(
+      "GET reports error:",
+      error
+    );
 
     return NextResponse.json(
       {
         success: false,
         message: "خطا در دریافت گزارش",
+        error:
+          error instanceof Error
+            ? error.message
+            : "خطای نامشخص",
       },
       { status: 500 }
     );
   }
 }
+
