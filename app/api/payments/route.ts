@@ -1,45 +1,139 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
+import { supabase } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+type PaymentBody = {
+  id?: number | string;
+  date?: string;
+  title?: string;
+  amount?: number | string;
+  method?: string;
+  description?: string;
+  receiptImage?: string;
+  notes?: string;
+};
+
+function toEnglishDigits(value: string) {
+  return value.replace(/[۰-۹]/g, (digit) =>
+    String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))
+  );
+}
+
+function normalizeAmount(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = toEnglishDigits(value)
+      .replace(/,/g, "")
+      .replace(/٬/g, "")
+      .trim();
+
+    const number = Number(normalized);
+
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  return 0;
+}
+
+function normalizeDate(value: unknown) {
+  if (!value) return null;
+
+  const text = toEnglishDigits(String(value).trim())
+    .replace(/\//g, "-")
+    .replace(/\./g, "-");
+
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
+
+  if (!match) return null;
+
+  return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(
+    2,
+    "0"
+  )}`;
+}
+
+function mapPayment(item: any) {
+  return {
+    id: item.id,
+    date: item.date ?? item.payment_date ?? null,
+    title: item.title ?? "",
+    amount: normalizeAmount(item.amount),
+    method: item.method ?? item.payment_method ?? "",
+    description: item.description ?? "",
+    receiptImage: item.receipt_image ?? "",
+    notes: item.notes ?? "",
+    createdAt: item.created_at ?? null,
+  };
+}
+
+/* =========================================================
+   GET
+========================================================= */
 
 export async function GET() {
   try {
-    const payments = db
-      .prepare(`
-        SELECT
-          id,
-          date,
-          title,
-          amount,
-          method,
-          description,
-          receipt_image AS receiptImage,
-          notes,
-          created_at AS createdAt
-        FROM payments
-        ORDER BY id DESC
+    const { data, error } = await supabase
+      .from("payments")
+      .select(`
+        id,
+        date,
+        title,
+        amount,
+        method,
+        description,
+        receipt_image,
+        notes,
+        payment_date,
+        payment_method,
+        created_at
       `)
-      .all();
+      .order("id", { ascending: false });
+
+    if (error) {
+      console.error("GET payments error:", error);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "خطا در دریافت واریزها",
+          error: error.message,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: payments,
+      data: (data || []).map(mapPayment),
     });
   } catch (error) {
-    console.error("GET payments error:", error);
+    console.error("GET payments exception:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "خطا در دریافت واریزها",
+        message: "خطا در ارتباط با سرور",
+        error:
+          error instanceof Error
+            ? error.message
+            : "خطای نامشخص",
       },
       { status: 500 }
     );
   }
 }
 
+/* =========================================================
+   POST
+========================================================= */
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body: PaymentBody = await request.json();
 
     const {
       date,
@@ -51,27 +145,23 @@ export async function POST(request: Request) {
       notes,
     } = body;
 
-    if (
-      !title ||
-      amount === undefined ||
-      amount === null
-    ) {
+    const cleanTitle = title
+      ? String(title).trim()
+      : "";
+
+    if (!cleanTitle) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "عنوان و مبلغ واریز الزامی است.",
+          message: "عنوان واریز را وارد کنید.",
         },
         { status: 400 }
       );
     }
 
-    const numericAmount = Number(amount);
+    const numericAmount = normalizeAmount(amount);
 
-    if (
-      !Number.isFinite(numericAmount) ||
-      numericAmount <= 0
-    ) {
+    if (numericAmount <= 0) {
       return NextResponse.json(
         {
           success: false,
@@ -81,85 +171,98 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = db
-      .prepare(`
-        INSERT INTO payments (
-          date,
-          title,
-          amount,
-          method,
-          description,
-          receipt_image,
-          notes
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `)
-      .run(
-        date ||
-          new Date()
-            .toISOString()
-            .slice(0, 10),
+    const paymentDate =
+      normalizeDate(date) ||
+      new Date().toISOString().slice(0, 10);
 
-        String(title).trim(),
+    const cleanMethod = method
+      ? String(method).trim()
+      : "کارت";
 
-        numericAmount,
+    const { data, error } = await supabase
+      .from("payments")
+      .insert({
+        title: cleanTitle,
+        amount: numericAmount,
 
-        method || "کارت",
+        date: paymentDate,
+        payment_date: paymentDate,
 
-        description
+        method: cleanMethod,
+        payment_method: cleanMethod,
+
+        description: description
           ? String(description).trim()
           : "",
 
-        receiptImage
+        receipt_image: receiptImage
           ? String(receiptImage).trim()
           : "",
 
-        notes
+        notes: notes
           ? String(notes).trim()
-          : ""
-      );
-
-    const payment = db
-      .prepare(`
-        SELECT
-          id,
-          date,
-          title,
-          amount,
-          method,
-          description,
-          receipt_image AS receiptImage,
-          notes,
-          created_at AS createdAt
-        FROM payments
-        WHERE id = ?
+          : "",
+      })
+      .select(`
+        id,
+        date,
+        title,
+        amount,
+        method,
+        description,
+        receipt_image,
+        notes,
+        payment_date,
+        payment_method,
+        created_at
       `)
-      .get(result.lastInsertRowid);
+      .single();
+
+    if (error) {
+      console.error("POST payments error:", error);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "خطا در ذخیره واریز",
+          error: error.message,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       {
         success: true,
         message: "واریز با موفقیت ذخیره شد.",
-        data: payment,
+        data: mapPayment(data),
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("POST payments error:", error);
+    console.error("POST payments exception:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "خطا در ذخیره واریز",
+        message: "خطا در ارتباط با سرور",
+        error:
+          error instanceof Error
+            ? error.message
+            : "خطای نامشخص",
       },
       { status: 500 }
     );
   }
 }
 
+/* =========================================================
+   PUT
+========================================================= */
+
 export async function PUT(request: Request) {
   try {
-    const body = await request.json();
+    const body: PaymentBody = await request.json();
 
     const {
       id,
@@ -187,22 +290,23 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (!title) {
+    const cleanTitle = title
+      ? String(title).trim()
+      : "";
+
+    if (!cleanTitle) {
       return NextResponse.json(
         {
           success: false,
-          message: "عنوان واریز الزامی است.",
+          message: "عنوان واریز را وارد کنید.",
         },
         { status: 400 }
       );
     }
 
-    const numericAmount = Number(amount);
+    const numericAmount = normalizeAmount(amount);
 
-    if (
-      !Number.isFinite(numericAmount) ||
-      numericAmount <= 0
-    ) {
+    if (numericAmount <= 0) {
       return NextResponse.json(
         {
           success: false,
@@ -212,13 +316,33 @@ export async function PUT(request: Request) {
       );
     }
 
-    const existing = db
-      .prepare(`
-        SELECT id
-        FROM payments
-        WHERE id = ?
-      `)
-      .get(numericId);
+    const paymentDate =
+      normalizeDate(date) ||
+      new Date().toISOString().slice(0, 10);
+
+    const cleanMethod = method
+      ? String(method).trim()
+      : "کارت";
+
+    const { data: existing, error: findError } =
+      await supabase
+        .from("payments")
+        .select("id, receipt_image")
+        .eq("id", numericId)
+        .maybeSingle();
+
+    if (findError) {
+      console.error("Check payment error:", findError);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "خطا در بررسی واریز",
+          error: findError.message,
+        },
+        { status: 500 }
+      );
+    }
 
     if (!existing) {
       return NextResponse.json(
@@ -230,106 +354,99 @@ export async function PUT(request: Request) {
       );
     }
 
-    let query = `
-      UPDATE payments
-      SET
-        date = ?,
-        title = ?,
-        amount = ?,
-        method = ?,
-        description = ?,
-        notes = ?
-    `;
+    const updateData: Record<string, unknown> = {
+      title: cleanTitle,
+      amount: numericAmount,
 
-    const params: unknown[] = [
-      date ||
-        new Date()
-          .toISOString()
-          .slice(0, 10),
+      date: paymentDate,
+      payment_date: paymentDate,
 
-      String(title).trim(),
+      method: cleanMethod,
+      payment_method: cleanMethod,
 
-      numericAmount,
-
-      method || "کارت",
-
-      description
+      description: description
         ? String(description).trim()
         : "",
 
-      notes
+      notes: notes
         ? String(notes).trim()
         : "",
-    ];
+    };
 
-    /*
-      اگر receiptImage ارسال نشده باشد،
-      عکس قبلی حفظ می‌شود.
-    */
     if (receiptImage !== undefined) {
-      query += `,
-        receipt_image = ?
-      `;
-
-      params.push(
-        receiptImage
-          ? String(receiptImage).trim()
-          : ""
-      );
+      updateData.receipt_image = receiptImage
+        ? String(receiptImage).trim()
+        : "";
     }
 
-    query += `
-      WHERE id = ?
-    `;
-
-    params.push(numericId);
-
-    db.prepare(query).run(...params);
-
-    const payment = db
-      .prepare(`
-        SELECT
-          id,
-          date,
-          title,
-          amount,
-          method,
-          description,
-          receipt_image AS receiptImage,
-          notes,
-          created_at AS createdAt
-        FROM payments
-        WHERE id = ?
+    const { data, error } = await supabase
+      .from("payments")
+      .update(updateData)
+      .eq("id", numericId)
+      .select(`
+        id,
+        date,
+        title,
+        amount,
+        method,
+        description,
+        receipt_image,
+        notes,
+        payment_date,
+        payment_method,
+        created_at
       `)
-      .get(numericId);
+      .single();
+
+    if (error) {
+      console.error("PUT payments error:", error);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "خطا در ویرایش واریز",
+          error: error.message,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: "واریز با موفقیت ویرایش شد.",
-      data: payment,
+      data: mapPayment(data),
     });
   } catch (error) {
-    console.error("PUT payments error:", error);
+    console.error("PUT payments exception:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "خطا در ویرایش واریز",
+        message: "خطا در ارتباط با سرور",
+        error:
+          error instanceof Error
+            ? error.message
+            : "خطای نامشخص",
       },
       { status: 500 }
     );
   }
 }
 
+/* =========================================================
+   DELETE
+========================================================= */
+
 export async function DELETE(request: Request) {
   try {
-    const body = await request.json();
+    const body: PaymentBody =
+      await request.json();
 
-    const id = Number(body.id);
+    const numericId = Number(body.id);
 
     if (
-      !Number.isInteger(id) ||
-      id <= 0
+      !Number.isInteger(numericId) ||
+      numericId <= 0
     ) {
       return NextResponse.json(
         {
@@ -340,15 +457,27 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const existing = db
-      .prepare(`
-        SELECT receipt_image AS receiptImage
-        FROM payments
-        WHERE id = ?
-      `)
-      .get(id) as
-      | { receiptImage?: string }
-      | undefined;
+    const {
+      data: existing,
+      error: findError,
+    } = await supabase
+      .from("payments")
+      .select("id, receipt_image")
+      .eq("id", numericId)
+      .maybeSingle();
+
+    if (findError) {
+      console.error("Find payment error:", findError);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "خطا در بررسی واریز",
+          error: findError.message,
+        },
+        { status: 500 }
+      );
+    }
 
     if (!existing) {
       return NextResponse.json(
@@ -360,39 +489,43 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const result = db
-      .prepare(
-        "DELETE FROM payments WHERE id = ?"
-      )
-      .run(id);
+    const { error } = await supabase
+      .from("payments")
+      .delete()
+      .eq("id", numericId);
 
-    if (result.changes === 0) {
+    if (error) {
+      console.error("DELETE payment error:", error);
+
       return NextResponse.json(
         {
           success: false,
-          message: "حذف واریز انجام نشد.",
+          message: "خطا در حذف واریز",
+          error: error.message,
         },
-        { status: 404 }
+        { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
       message: "واریز با موفقیت حذف شد.",
-      image: existing.receiptImage || null,
+      image: existing.receipt_image || null,
     });
   } catch (error) {
-    console.error(
-      "DELETE payment error:",
-      error
-    );
+    console.error("DELETE payments exception:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "خطا در حذف واریز",
+        message: "خطا در ارتباط با سرور",
+        error:
+          error instanceof Error
+            ? error.message
+            : "خطای نامشخص",
       },
       { status: 500 }
     );
   }
 }
+

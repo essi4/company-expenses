@@ -1,27 +1,34 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 type PurchaseRow = {
   id: number;
-  date: string;
-  seller: string;
-  description: string;
-  amount: number;
-  payment: string;
-  invoiceNumber: string | null;
+  date: string | null;
+  purchase_date: string | null;
+  seller: string | null;
+  supplier: string | null;
+  title: string | null;
+  description: string | null;
+  amount: number | string | null;
+  payment: string | null;
+  invoice_number: string | null;
+  invoice_image: string | null;
   notes: string | null;
-  status: string;
+  status: string | null;
 };
 
 type PaymentRow = {
   id: number;
-  date: string;
-  title: string;
-  amount: number;
-  method: string;
+  date: string | null;
+  payment_date: string | null;
+  title: string | null;
+  amount: number | string | null;
+  method: string | null;
+  payment_method: string | null;
   description: string | null;
+  receipt_image: string | null;
   notes: string | null;
 };
 
@@ -35,12 +42,29 @@ function toEnglishDigits(value: string) {
   );
 }
 
-function normalizeDate(value: unknown) {
-  if (typeof value !== "string") {
-    return "";
+function normalizeAmount(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
   }
 
-  return toEnglishDigits(value)
+  if (typeof value === "string") {
+    const normalized = toEnglishDigits(value)
+      .replace(/,/g, "")
+      .replace(/٬/g, "")
+      .trim();
+
+    const number = Number(normalized);
+
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  return 0;
+}
+
+function normalizeDate(value: unknown) {
+  if (!value) return null;
+
+  return toEnglishDigits(String(value))
     .trim()
     .replace(/\//g, "-")
     .replace(/\./g, "-")
@@ -68,7 +92,7 @@ function getStartOfWeekGregorian() {
 
   const day = now.getDay();
 
-  // Monday = 1, Sunday = 0
+  // Monday = first day of week
   const diff = day === 0 ? 6 : day - 1;
 
   const start = new Date(now);
@@ -80,121 +104,195 @@ function getStartOfWeekGregorian() {
   )}-${pad2(start.getDate())}`;
 }
 
-function normalizeAmount(value: unknown) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
-  }
+function mapPurchase(item: PurchaseRow) {
+  const date =
+    normalizeDate(item.date) ||
+    normalizeDate(item.purchase_date);
 
-  if (typeof value === "string") {
-    const normalized = toEnglishDigits(value)
-      .replace(/,/g, "")
-      .replace(/٬/g, "")
-      .trim();
+  return {
+    id: item.id,
+    date,
+    seller:
+      item.seller ||
+      item.supplier ||
+      "",
+    description:
+      item.description ||
+      item.title ||
+      "",
+    amount: normalizeAmount(item.amount),
+    payment: item.payment || "کارت",
+    invoiceNumber:
+      item.invoice_number || "",
+    invoiceImage:
+      item.invoice_image || "",
+    notes: item.notes || "",
+    status:
+      item.status || "ثبت شده",
+  };
+}
 
-    const number = Number(normalized);
+function mapPayment(item: PaymentRow) {
+  const date =
+    normalizeDate(item.date) ||
+    normalizeDate(item.payment_date);
 
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  return 0;
+  return {
+    id: item.id,
+    date,
+    title: item.title || "",
+    amount: normalizeAmount(item.amount),
+    method:
+      item.method ||
+      item.payment_method ||
+      "کارت",
+    description:
+      item.description || "",
+    receiptImage:
+      item.receipt_image || "",
+    notes: item.notes || "",
+  };
 }
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const range = searchParams.get("range") || "month";
+    const range =
+      searchParams.get("range") || "month";
 
-    let startDate = getStartOfMonthGregorian();
+    let startDate =
+      getStartOfMonthGregorian();
 
     if (range === "today") {
       startDate = getTodayGregorian();
     } else if (range === "week") {
       startDate = getStartOfWeekGregorian();
-    } else if (range === "month") {
-      startDate = getStartOfMonthGregorian();
     }
 
-    const endDate = getTodayGregorian();
+    const endDate =
+      getTodayGregorian();
 
-    const dateSql = `
-      replace(
-        replace(
-          replace(date, '/', '-'),
-          '.', '-'
-        ),
-        ' ',
-        ''
-      )
-    `;
+    /* =====================================================
+       PURCHASES
+    ===================================================== */
 
-    const purchases = db
-      .prepare(`
-        SELECT
-          id,
-          date,
-          seller,
-          description,
-          amount,
-          payment,
-          invoice_number AS invoiceNumber,
-          notes,
-          status
-        FROM purchases
-        WHERE
-          ${dateSql} >= ?
-          AND ${dateSql} <= ?
-        ORDER BY
-          ${dateSql} DESC,
-          id DESC
+    const {
+      data: purchaseData,
+      error: purchaseError,
+    } = await supabase
+      .from("purchases")
+      .select(`
+        id,
+        date,
+        purchase_date,
+        seller,
+        supplier,
+        title,
+        description,
+        amount,
+        payment,
+        invoice_number,
+        invoice_image,
+        notes,
+        status
       `)
-      .all(startDate, endDate) as PurchaseRow[];
+      .gte("purchase_date", startDate)
+      .lte("purchase_date", endDate)
+      .order("purchase_date", {
+        ascending: false,
+      })
+      .order("id", {
+        ascending: false,
+      });
 
-    const payments = db
-      .prepare(`
-        SELECT
-          id,
-          date,
-          title,
-          amount,
-          method,
-          description,
-          notes
-        FROM payments
-        WHERE
-          ${dateSql} >= ?
-          AND ${dateSql} <= ?
-        ORDER BY
-          ${dateSql} DESC,
-          id DESC
+    if (purchaseError) {
+      console.error(
+        "GET reports purchases error:",
+        purchaseError
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "خطا در دریافت خریدهای گزارش",
+          error:
+            purchaseError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    /* =====================================================
+       PAYMENTS
+    ===================================================== */
+
+    const {
+      data: paymentData,
+      error: paymentError,
+    } = await supabase
+      .from("payments")
+      .select(`
+        id,
+        date,
+        payment_date,
+        title,
+        amount,
+        method,
+        payment_method,
+        description,
+        receipt_image,
+        notes
       `)
-      .all(startDate, endDate) as PaymentRow[];
-
-    const normalizedPurchases = purchases.map(
-      (item) => ({
-        ...item,
-        date: normalizeDate(item.date),
-        amount: normalizeAmount(item.amount),
+      .gte("payment_date", startDate)
+      .lte("payment_date", endDate)
+      .order("payment_date", {
+        ascending: false,
       })
-    );
+      .order("id", {
+        ascending: false,
+      });
 
-    const normalizedPayments = payments.map(
-      (item) => ({
-        ...item,
-        date: normalizeDate(item.date),
-        amount: normalizeAmount(item.amount),
-      })
-    );
+    if (paymentError) {
+      console.error(
+        "GET reports payments error:",
+        paymentError
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "خطا در دریافت واریزهای گزارش",
+          error:
+            paymentError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    const purchases =
+      (purchaseData || []).map(
+        mapPurchase
+      );
+
+    const payments =
+      (paymentData || []).map(
+        mapPayment
+      );
 
     const purchaseTotal =
-      normalizedPurchases.reduce(
-        (sum, item) => sum + item.amount,
+      purchases.reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
         0
       );
 
     const paymentTotal =
-      normalizedPayments.reduce(
-        (sum, item) => sum + item.amount,
+      payments.reduce(
+        (sum, item) =>
+          sum + Number(item.amount || 0),
         0
       );
 
@@ -203,24 +301,34 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+
       range,
+
       startDate,
+
       endDate,
+
       summary: {
         purchaseCount:
-          normalizedPurchases.length,
+          purchases.length,
+
         purchaseTotal,
+
         paymentCount:
-          normalizedPayments.length,
+          payments.length,
+
         paymentTotal,
+
         balance,
       },
-      purchases: normalizedPurchases,
-      payments: normalizedPayments,
+
+      purchases,
+
+      payments,
     });
   } catch (error) {
     console.error(
-      "GET reports error:",
+      "GET reports exception:",
       error
     );
 
@@ -237,4 +345,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
