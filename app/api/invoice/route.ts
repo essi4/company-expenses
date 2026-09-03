@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { getCompanyContext } from "@/lib/company";
+export const dynamic="force-dynamic";
+export async function GET(request:Request){try{const c=await getCompanyContext();if(!c.companyId)return NextResponse.json({success:false,message:"دسترسی غیرمجاز"},{status:401});const url=new URL(request.url),path=url.searchParams.get("path")||"";if(!path.startsWith(`company-${c.companyId}/`))return NextResponse.json({success:false,message:"دسترسی به این فایل مجاز نیست."},{status:403});const {data,error}=await c.supabase.storage.from("invoice-images").createSignedUrl(path,300);if(error||!data?.signedUrl)return NextResponse.json({success:false,message:"تصویر فاکتور پیدا نشد."},{status:404});return NextResponse.redirect(data.signedUrl,302)}catch(e){return NextResponse.json({success:false,message:"خطا در دریافت تصویر."},{status:500})}}
