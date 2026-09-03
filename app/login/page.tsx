@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const PRODUCTION_URL = "https://company-expenses-essi5.vercel.app";
+
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -33,12 +35,12 @@ export default function LoginPage() {
           password,
           options: {
             data: { company_name: companyName.trim() },
-            emailRedirectTo: `${window.location.origin}/auth/confirm`,
+            emailRedirectTo: `${PRODUCTION_URL}/auth/confirm`,
           },
         });
         if (error) throw error;
         if (data.session) window.location.href = "/";
-        else setMessage("ثبت‌نام انجام شد. اگر تأیید ایمیل فعال باشد، لینک ورود به ایمیل شما ارسال شده است.");
+        else setMessage("ثبت‌نام انجام شد. لطفاً ایمیل خود را تأیید کنید و سپس وارد شوید.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "ورود ناموفق بود.");
