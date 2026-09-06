@@ -2,21 +2,75 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --background: #f8fafc; --foreground: #0f172a; }
+:root {
+  --background: #f5f7fb;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --brand: #0f172a;
+}
+
 * { box-sizing: border-box; }
-html { min-width: 320px; background: var(--background); }
-body { margin: 0; color: var(--foreground); background: var(--background); font-family: var(--font-geist-sans), Tahoma, Arial, sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+html { min-width: 320px; background: var(--background); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(15, 23, 42, .035), transparent 30rem),
+    var(--background);
+  font-family: var(--font-geist-sans), Tahoma, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 button, input, select, textarea { font: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-button { touch-action: manipulation; }
+button { touch-action: manipulation; transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease, border-color .15s ease, opacity .15s ease; }
+button:active { transform: translateY(1px); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, .25);
+  outline-offset: 2px;
+}
+input, select, textarea { transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+input:focus, select:focus, textarea:focus {
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, .12);
+  outline: none;
+}
 img { max-width: 100%; }
+
+@layer components {
+  .input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: .9rem;
+    background: var(--surface);
+    padding: .75rem .9rem;
+    color: var(--foreground);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+  }
+  .input::placeholder { color: #94a3b8; }
+  .input:hover { border-color: #cbd5e1; }
+}
+
+/* Clean scrollbar for desktop */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; border: 2px solid transparent; background-clip: padding-box; }
 
 @media (max-width: 639px) {
   input, select, textarea { font-size: 16px; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
 }
 
 @media (min-width: 640px) {
   body { min-height: 100vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 
 @layer utilities {
