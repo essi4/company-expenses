@@ -1,12 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
-
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => {
-    console.error("Company Expenses application error", error);
-  }, [error]);
-
+export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <main dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-10">
       <section className="w-full max-w-md rounded-[2rem] bg-white p-7 text-center shadow-xl shadow-slate-200/60 ring-1 ring-slate-200">
