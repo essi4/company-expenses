@@ -209,3 +209,83 @@ create policy business_invoice_items_auth on public.business_invoice_items for a
 
 alter table public.business_payments add column if not exists invoice_id uuid references public.business_invoices(id) on delete set null;
 create index if not exists business_payments_invoice_idx on public.business_payments(invoice_id);
+
+
+-- EASY Business Management: persistent workspace configuration.
+alter table public.businesses add column if not exists legal_name text;
+alter table public.businesses add column if not exists email text;
+alter table public.businesses add column if not exists website text;
+alter table public.businesses add column if not exists country text not null default 'IR';
+alter table public.businesses add column if not exists locale text not null default 'fa-IR';
+alter table public.businesses add column if not exists timezone text not null default 'Asia/Tehran';
+alter table public.businesses add column if not exists currency text not null default 'IRR';
+alter table public.businesses add column if not exists postal_code text;
+alter table public.businesses add column if not exists tax_id text;
+alter table public.businesses add column if not exists logo_url text;
+alter table public.businesses add column if not exists settings jsonb not null default '{}';
+
+create table if not exists public.business_modules (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ module_id text not null,
+ state text not null default 'enabled' check (state in ('enabled','disabled','locked')),
+ config jsonb not null default '{}',
+ enabled_at timestamptz,
+ updated_at timestamptz not null default now(),
+ unique(business_id,module_id)
+);
+create index if not exists business_modules_business_idx on public.business_modules(business_id);
+
+create table if not exists public.business_payment_methods (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ method text not null,
+ title text,
+ enabled boolean not null default true,
+ is_default boolean not null default false,
+ provider text,
+ config jsonb not null default '{}',
+ updated_at timestamptz not null default now(),
+ unique(business_id,method)
+);
+create index if not exists business_payment_methods_business_idx on public.business_payment_methods(business_id);
+
+create table if not exists public.business_working_hours (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ weekday smallint not null check (weekday between 0 and 6),
+ enabled boolean not null default true,
+ open_time time,
+ close_time time,
+ break_start time,
+ break_end time,
+ unique(business_id,weekday)
+);
+
+create table if not exists public.business_branding (
+ business_id uuid primary key references public.businesses(id) on delete cascade,
+ theme_key text not null default 'elegant',
+ primary_color text,
+ secondary_color text,
+ radius_scale text not null default 'comfortable',
+ logo_url text,
+ settings jsonb not null default '{}',
+ updated_at timestamptz not null default now()
+);
+
+alter table public.business_modules enable row level security;
+alter table public.business_payment_methods enable row level security;
+alter table public.business_working_hours enable row level security;
+alter table public.business_branding enable row level security;
+
+drop policy if exists business_modules_auth on public.business_modules;
+create policy business_modules_auth on public.business_modules for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_payment_methods_auth on public.business_payment_methods;
+create policy business_payment_methods_auth on public.business_payment_methods for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_working_hours_auth on public.business_working_hours;
+create policy business_working_hours_auth on public.business_working_hours for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_branding_auth on public.business_branding;
+create policy business_branding_auth on public.business_branding for all using (public.is_authenticated()) with check (public.is_authenticated());
+
+create index if not exists businesses_category_status_idx on public.businesses(business_type,status);
+create index if not exists businesses_owner_idx on public.businesses(owner_email);
