@@ -4,19 +4,19 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Business = {
+type کسب‌وکار = {
   id: string;
   name: string;
   slug: string;
   type: "Beauty" | "Automotive" | "Medical" | "Services";
   mode: string;
   plan: "Starter" | "Professional" | "Enterprise";
-  status: "Active" | "Trial" | "Suspended";
+  status: "فعال" | "آزمایشی" | "معلق";
   owner: string;
   updated: string;
 };
 
-const seedBusinesses: Business[] = [
+const seedکسب‌وکارها: Business[] = [
   { id: "BUS-001", name: "EASY Demo Beauty", slug: "easy-demo-beauty", type: "Beauty", mode: "Women", plan: "Professional", status: "Active", owner: "demo@easy.local", updated: "امروز" },
   { id: "BUS-002", name: "EASY Auto Center", slug: "easy-auto-center", type: "Automotive", mode: "Oil Change", plan: "Starter", status: "Trial", owner: "auto@easy.local", updated: "دیروز" },
   { id: "BUS-003", name: "EASY Clinic", slug: "easy-clinic", type: "Medical", mode: "Clinic", plan: "Enterprise", status: "Active", owner: "clinic@easy.local", updated: "۲ روز قبل" },
@@ -26,19 +26,19 @@ const navSections = [
   { id: "overview", label: "داشبورد", en: "Overview", icon: "⌂" },
   { id: "businesses", label: "مدیریت کسب‌وکارها", en: "Business Management", icon: "▣" },
   { id: "users", label: "کاربران و دسترسی", en: "Users & Access", icon: "♙" },
-  { id: "subscriptions", label: "اشتراک‌ها و پلن‌ها", en: "Subscriptions", icon: "◆" },
-  { id: "marketplace", label: "Marketplace", en: "Marketplace", icon: "⬢" },
-  { id: "ai", label: "EASY AI", en: "AI Platform", icon: "✦" },
-  { id: "governance", label: "Governance", en: "Governance", icon: "◈" },
-  { id: "identity", label: "Identity", en: "Identity", icon: "◎" },
+  { id: "subscriptions", label: "اشتراک‌ها و پلن‌ها", en: "اشتراکs", icon: "◆" },
+  { id: "marketplace", label: "بازارچه", en: "", icon: "⬢" },
+  { id: "ai", label: "هوش مصنوعی EASY", en: "", icon: "✦" },
+  { id: "governance", label: "حاکمیت و سیاست‌گذاری", en: "", icon: "◈" },
+  { id: "identity", label: "هویت و دسترسی", en: "", icon: "◎" },
   { id: "infrastructure", label: "زیرساخت جهانی", en: "Infrastructure", icon: "◇" },
   { id: "data", label: "داده و تحلیل", en: "Data & Analytics", icon: "▤" },
-  { id: "developers", label: "Developer Platform", en: "Developers", icon: "</>" },
-  { id: "partners", label: "Partners", en: "Partner Economy", icon: "∞" },
-  { id: "reliability", label: "Reliability & DR", en: "Reliability", icon: "◉" },
+  { id: "developers", label: "پلتفرم توسعه‌دهندگان", en: "", icon: "</>" },
+  { id: "partners", label: "شرکای تجاری", en: "", icon: "∞" },
+  { id: "reliability", label: "پایداری و بازیابی", en: "", icon: "◉" },
   { id: "security", label: "مرکز امنیت", en: "Security Operations", icon: "⬟" },
-  { id: "enterprise", label: "Enterprise Control", en: "Enterprise", icon: "▦" },
-  { id: "architecture", label: "Architecture Lock", en: "Architecture", icon: "⌘" },
+  { id: "enterprise", label: "کنترل سازمانی", en: "", icon: "▦" },
+  { id: "architecture", label: "قفل معماری", en: "", icon: "⌘" },
 ];
 
 const moduleCards: Record<string, { title: string; description: string; stats: [string, string][] }> = {
@@ -54,7 +54,7 @@ const moduleCards: Record<string, { title: string; description: string; stats: [
   partners: { title: "Marketplace Economy", description: "Partner، Commission، Settlement، Payout و Revenue Share.", stats: [["Partners", "همکاران"], ["Commission", "کمیسیون"], ["Payout", "پرداخت"]] },
   reliability: { title: "Reliability & Disaster Recovery", description: "SLO، Incident، Backup، Restore Point و DR Run.", stats: [["SLO", "سیاست‌ها"], ["Incidents", "رخدادها"], ["Backups", "پشتیبان‌ها"]] },
   security: { title: "Security Operations Center", description: "Finding، Detection، Incident، Playbook و Evidence.", stats: [["Findings", "یافته‌ها"], ["Incidents", "حوادث"], ["Playbooks", "Playbookها"]] },
-  enterprise: { title: "Enterprise Control Plane", description: "Action، Rollout، Tenant Flag، Admin Session و Audit.", stats: [["Actions", "عملیات"], ["Rollouts", "Rollout"], ["Audit", "Audit"]] },
+  enterprise: { title: "Enterprise Control Plane", description: "عملیات، Rollout، Tenant Flag، Admin Session و Audit.", stats: [["Actions", "عملیات"], ["Rollouts", "Rollout"], ["Audit", "Audit"]] },
   architecture: { title: "Architecture Lock", description: "نسخه‌های معماری، تصمیم‌ها، Change Request و Lock Window.", stats: [["Version", "Architecture"], ["Decisions", "تصمیم‌ها"], ["Changes", "تغییرات"]] },
 };
 
@@ -72,7 +72,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
 
   const [businesses, setBusinesses] = useState(seedBusinesses);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setوضعیتFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);
@@ -141,13 +141,13 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
           <div className="flex items-center gap-3">
             <button onClick={() => go("businesses")} className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg font-black text-slate-950">E</button>
             <div>
-              <b className="block text-sm sm:text-base">EASY Control Center</b>
-              <span className="text-[10px] text-slate-500">SUPER ADMIN · PLATFORM CONTROL PLANE</span>
+              <b className="block text-sm sm:text-base">مرکز کنترل EASY</b>
+              <span className="text-[10px] text-slate-500">مدیر ارشد · مرکز کنترل پلتفرم</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-left sm:block">
-              <span className="block text-[10px] text-slate-500">ADMIN ACCOUNT</span>
+              <span className="block text-[10px] text-slate-500">حساب مدیر</span>
               <span className="text-xs font-bold text-slate-200">{userEmail}</span>
             </div>
             <button onClick={signOut} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-bold text-slate-300 hover:bg-white/5">خروج</button>
@@ -165,7 +165,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-black/10 text-sm font-black">{item.icon}</span>
                   <span className="min-w-0">
                     <b className="block truncate text-xs">{item.label}</b>
-                    <span className={`block text-[9px] ${section === item.id ? "text-slate-500" : "text-slate-600"}`}>{item.en}</span>
+                    
                   </span>
                 </span>
               </button>
@@ -173,7 +173,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
           </nav>
           <div className="mt-4 rounded-2xl border border-cyan-400/10 bg-cyan-400/[0.05] p-4">
             <span className="text-[10px] font-black text-cyan-300">PLATFORM STATUS</span>
-            <div className="mt-2 flex items-center gap-2 text-xs font-bold text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300" /> Online</div>
+            <div className="mt-2 flex items-center gap-2 text-xs font-bold text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-300" /> آنلاین</div>
             <p className="mt-2 text-[10px] leading-5 text-slate-500">Feature Branch Preview · Production جداست.</p>
           </div>
         </aside>
@@ -192,14 +192,14 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
             </div>
             <div className="flex gap-2">
               {section === "businesses" && <button onClick={() => setShowCreate(true)} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">＋ ایجاد کسب‌وکار</button>}
-              <button onClick={() => go("businesses")} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/5">Business Management</button>
+              <button onClick={() => go("businesses")} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/5">مدیریت کسب‌وکارها</button>
             </div>
           </div>
 
           {section === "overview" && (
             <div className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {[["Businesses", String(counts.all), "کسب‌وکارها"], ["Active", String(counts.active), "فعال"], ["Trial", String(counts.trial), "آزمایشی"], ["Platform", "Ready", "سلامت پلتفرم"]].map(([meta, value, label]) => (
+                {[["Businesses", String(counts.all), "کسب‌وکارها"], ["Active", String(counts.active), "فعال"], ["Trial", String(counts.trial), "آزمایشی"], ["Platform", "آماده", "سلامت پلتفرم"]].map(([meta, value, label]) => (
                   <div key={meta} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
                     <span className="text-[10px] font-bold text-slate-500">{meta}</span>
                     <b className="mt-2 block text-3xl font-black">{value}</b>
@@ -209,15 +209,15 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-                  <h3 className="font-black">Platform Modules</h3>
+                  <h3 className="font-black">ماژول‌های پلتفرم</h3>
                   <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {navSections.slice(1, 10).map((item) => <button key={item.id} onClick={() => go(item.id)} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-4 text-right text-xs font-bold text-slate-300 hover:bg-white/[0.06]">{item.label}</button>)}
                   </div>
                 </div>
                 <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-                  <h3 className="font-black">System Health</h3>
+                  <h3 className="font-black">سلامت سیستم</h3>
                   <div className="mt-4 space-y-3">
-                    {[["Core API", "Operational"], ["Database", "Protected"], ["Authentication", "Operational"], ["Event Bus", "Ready"], ["Automation", "Ready"]].map(([name, state]) => <div key={name} className="flex items-center justify-between rounded-2xl border border-white/10 px-4 py-3"><span className="text-xs font-bold text-slate-300">{name}</span><span className="text-[10px] font-black text-emerald-300">● {state}</span></div>)}
+                    {[["Core API", "عملیاتی"], ["Database", "محافظت‌شده"], ["Authentication", "Operational"], ["Event Bus", "Ready"], ["Automation", "Ready"]].map(([name, state]) => <div key={name} className="flex items-center justify-between rounded-2xl border border-white/10 px-4 py-3"><span className="text-xs font-bold text-slate-300">{name}</span><span className="text-[10px] font-black text-emerald-300">● {state}</span></div>)}
                   </div>
                 </div>
               </div>
@@ -227,7 +227,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
           {section === "businesses" && (
             <div className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {[["ALL", counts.all, "کل کسب‌وکارها"], ["ACTIVE", counts.active, "فعال"], ["TRIAL", counts.trial, "آزمایشی"], ["SUSPENDED", counts.suspended, "معلق"]].map(([code, value, label]) => (
+                {[["همه", counts.all, "کل کسب‌وکارها"], ["ACTIVE", counts.active, "فعال"], ["TRIAL", counts.trial, "آزمایشی"], ["SUSPENDED", counts.suspended, "معلق"]].map(([code, value, label]) => (
                   <button key={code} onClick={() => setStatusFilter(code === "ALL" ? "all" : code === "ACTIVE" ? "Active" : code === "TRIAL" ? "Trial" : "Suspended")} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 text-right hover:bg-white/[0.05]">
                     <span className="text-[10px] font-bold text-slate-500">{code}</span><b className="mt-2 block text-3xl font-black">{value}</b><span className="mt-1 block text-xs text-slate-400">{label}</span>
                   </button>
@@ -248,7 +248,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
                 <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10">
                   <table className="w-full min-w-[940px] text-right">
                     <thead className="bg-white/[0.04] text-[10px] font-black text-slate-500">
-                      <tr><th className="px-4 py-4">Business</th><th className="px-4 py-4">Type / Mode</th><th className="px-4 py-4">Owner</th><th className="px-4 py-4">Subscription</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Action</th></tr>
+                      <tr><th className="px-4 py-4">Business</th><th className="px-4 py-4">نوع / حالت</th><th className="px-4 py-4">مالک</th><th className="px-4 py-4">Subscription</th><th className="px-4 py-4">Status</th><th className="px-4 py-4">Action</th></tr>
                     </thead>
                     <tbody className="divide-y divide-white/10">
                       {filtered.map((business) => (
@@ -265,7 +265,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 text-[10px] leading-5 text-slate-600">Preview Data: رکوردهای بالا داده نمایشی همین محیط هستند؛ اتصال CRUD دائمی به هسته داده در لایه بعدی انجام می‌شود.</div>
+                <div className="mt-3 text-[10px] leading-5 text-slate-600">داده نمایشی: رکوردهای بالا داده نمایشی همین محیط هستند؛ اتصال CRUD دائمی به هسته داده در لایه بعدی انجام می‌شود.</div>
               </div>
             </div>
           )}
@@ -278,18 +278,18 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
               <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 sm:p-8">
                 <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
                   <div>
-                    <span className="text-xs font-black text-cyan-300">MODULE READY</span>
+                    <span className="text-xs font-black text-cyan-300">ماژول آماده</span>
                     <h2 className="mt-2 text-2xl font-black">{moduleCards[section]?.title}</h2>
                     <p className="mt-3 max-w-2xl text-sm leading-8 text-slate-400">{moduleCards[section]?.description}</p>
                     <div className="mt-6 grid gap-2 sm:grid-cols-2">
-                      {["Policy-driven operations", "Role & Permission aware", "Audit-ready events", "Tenant-aware architecture", "API / Event Bus ready", "Feature rollout compatible"].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-slate-300">✓ {item}</div>)}
+                      {["عملیات مبتنی بر سیاست", "آگاه از نقش و مجوز", "رویدادهای آماده حسابرسی", "معماری چندکسب‌وکاره", "آماده API و گذرگاه رویداد", "سازگار با انتشار مرحله‌ای"].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.025] px-4 py-3 text-xs font-bold text-slate-300">✓ {item}</div>)}
                     </div>
                   </div>
                   <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
-                    <span className="text-[10px] font-black text-slate-500">CONTROL PLANE</span>
+                    <span className="text-[10px] font-black text-slate-500">مرکز کنترل</span>
                     <div className="mt-4 space-y-2">
-                      <div className="rounded-2xl bg-white/[0.04] p-4 text-xs font-bold">Stage 149 · Admin Control</div>
-                      <div className="rounded-2xl bg-white/[0.04] p-4 text-xs font-bold">Stage 150 · Architecture Lock</div>
+                      <div className="rounded-2xl bg-white/[0.04] p-4 text-xs font-bold">مرحله ۱۴۹ · کنترل مدیریت</div>
+                      <div className="rounded-2xl bg-white/[0.04] p-4 text-xs font-bold">مرحله ۱۵۰ · قفل معماری</div>
                       <button onClick={() => go("businesses")} className="w-full rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-950">بازگشت به Business Management</button>
                     </div>
                   </div>
@@ -304,15 +304,15 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 sm:items-center" onClick={() => setShowCreate(false)}>
           <div className="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-[#0b0f18] p-5 shadow-2xl sm:p-7" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
-              <div><span className="text-xs font-black text-cyan-300">CREATE BUSINESS</span><h2 className="mt-2 text-2xl font-black">ایجاد کسب‌وکار جدید</h2><p className="mt-2 text-xs leading-6 text-slate-500">Workspace اولیه بر اساس Type و Mode انتخابی ساخته می‌شود.</p></div>
+              <div><span className="text-xs font-black text-cyan-300">ایجاد کسب‌وکار</span><h2 className="mt-2 text-2xl font-black">ایجاد کسب‌وکار جدید</h2><p className="mt-2 text-xs leading-6 text-slate-500">Workspace اولیه بر اساس Type و Mode انتخابی ساخته می‌شود.</p></div>
               <button onClick={() => setShowCreate(false)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold text-slate-400">نام کسب‌وکار</span><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="مثلاً سالن نیلوفر" className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">Business Type</span><select value={createForm.type} onChange={(e) => setCreateForm({ ...createForm, type: e.target.value as Business["type"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Beauty</option><option>Automotive</option><option>Medical</option><option>Services</option></select></label>
+              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">نوع کسب‌وکار</span><select value={createForm.type} onChange={(e) => setCreateForm({ ...createForm, type: e.target.value as Business["type"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Beauty</option><option>Automotive</option><option>Medical</option><option>Services</option></select></label>
               <label><span className="mb-1.5 block text-xs font-bold text-slate-400">Mode</span><input value={createForm.mode} onChange={(e) => setCreateForm({ ...createForm, mode: e.target.value })} placeholder="Women / Oil Change / Clinic..." className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">Subscription Plan</span><select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value as Business["plan"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Starter</option><option>Professional</option><option>Enterprise</option></select></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">Owner Email</span><input type="email" value={createForm.owner} onChange={(e) => setCreateForm({ ...createForm, owner: e.target.value })} placeholder={userEmail} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">پلن اشتراک</span><select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value as Business["plan"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Starter</option><option>Professional</option><option>Enterprise</option></select></label>
+              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">ایمیل مالک</span><input type="email" value={createForm.owner} onChange={(e) => setCreateForm({ ...createForm, owner: e.target.value })} placeholder={userEmail} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
             </div>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
               <button onClick={createBusiness} disabled={!createForm.name.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-40">ساخت Business</button>
@@ -330,17 +330,17 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
               <button onClick={() => setSelected(null)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {[["Type", selected.type], ["Mode", selected.mode], ["Plan", selected.plan], ["Status", selected.status], ["Owner", selected.owner], ["Last Update", selected.updated]].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><span className="text-[10px] text-slate-600">{label}</span><b className="mt-2 block text-sm">{value}</b></div>)}
+              {[["Type", selected.type], ["Mode", selected.mode], ["Plan", selected.plan], ["Status", selected.status], ["Owner", selected.owner], ["آخرین بروزرسانی", selected.updated]].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><span className="text-[10px] text-slate-600">{label}</span><b className="mt-2 block text-sm">{value}</b></div>)}
             </div>
             <div className="mt-5 rounded-3xl border border-white/10 p-5">
-              <span className="text-[10px] font-black text-slate-500">WORKSPACE MODULES</span>
+              <span className="text-[10px] font-black text-slate-500">ماژول‌های فضای کاری</span>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {["Dashboard", "Staff", "Customers", "Services", "Appointments", "Payments", "Reports", "Settings"].map((item) => <div key={item} className="rounded-xl border border-white/10 px-3 py-3 text-xs font-bold text-slate-300">✓ {item}</div>)}
               </div>
             </div>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <button onClick={() => setSelected(null)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950">Enter Business</button>
-              <button onClick={() => setSelected(null)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300">Edit Business</button>
+              <button onClick={() => setSelected(null)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950">ورود به کسب‌وکار</button>
+              <button onClick={() => setSelected(null)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300">ویرایش کسب‌وکار</button>
             </div>
           </div>
         </div>
