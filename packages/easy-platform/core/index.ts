@@ -5,3 +5,4 @@ export * from "./field-registry";
 export * from "./workflows";
 export * from "./permissions";
 export * from "./financial";
+export * from "./module-routes";
