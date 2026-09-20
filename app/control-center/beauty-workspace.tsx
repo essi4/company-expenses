@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Customer = { id: number; name: string; phone: string };
-type Service = { id: number; name: string; price: number; duration: number };
-type Staff = { id: number; name: string; role: string };
-type Appointment = { id: number; time: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
-type Payment = { id: number; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };
+type Customer = { id: string; name: string; phone: string };
+type Service = { id: string; name: string; price: number; duration: number };
+type Staff = { id: string; name: string; role: string };
+type Appointment = { id: string; time: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
+type Payment = { id: string; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };
 
 const initialCustomers: Customer[] = [
   { id: 1, name: "امیر رضایی", phone: "۰۹۱۲۱۲۳۴۵۶۷" },
@@ -38,7 +38,7 @@ const initialPayments: Payment[] = [
 
 const toman = new Intl.NumberFormat("fa-IR");
 
-export default function BeautyWorkspace({ name, mode, plan, businessId }: { name: string; mode: string; plan: string; businessId?: string }) {
+export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { name: string; mode: string; plan: string; businessSlug?: string }) {
   const [tab, setTab] = useState("داشبورد");
   const [customers, setCustomers] = useState(initialCustomers);
   const [services, setServices] = useState(initialServices);
@@ -47,7 +47,9 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
   const [payments, setPayments] = useState(initialPayments);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState("");
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(Boolean(businessSlug));
 
   const [customerForm, setCustomerForm] = useState({ name: "", phone: "" });
   const [serviceForm, setServiceForm] = useState({ name: "", price: "", duration: "30" });
@@ -63,8 +65,10 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
 
   async function addCustomer() {
     if (!customerForm.name.trim() || !customerForm.phone.trim()) return;
-    const next = { id: Date.now(), name: customerForm.name.trim(), phone: customerForm.phone.trim() };
-    if (businessId) await supabase.from("business_customers").insert({ business_id: businessId, name: next.name, phone: next.phone });
+    if (!resolvedBusinessId) return;
+    const { data, error } = await supabase.from("business_customers").insert({ business_id: resolvedBusinessId, name: customerForm.name.trim(), phone: customerForm.phone.trim() }).select("id,name,phone").single();
+    if (error || !data) return notify("ثبت مشتری انجام نشد.");
+    const next = { id: data.id, name: data.name, phone: data.phone };
     setCustomers((items) => [...items, next]);
     setCustomerForm({ name: "", phone: "" });
     notify("مشتری ثبت شد.");
@@ -74,8 +78,10 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
     const price = Number(serviceForm.price);
     const duration = Number(serviceForm.duration);
     if (!serviceForm.name.trim() || !price || !duration) return;
-    const next = { id: Date.now(), name: serviceForm.name.trim(), price, duration };
-    if (businessId) await supabase.from("business_services").insert({ business_id: businessId, name: next.name, price: next.price, duration_minutes: next.duration });
+    if (!resolvedBusinessId) return;
+    const { data, error } = await supabase.from("business_services").insert({ business_id: resolvedBusinessId, name: serviceForm.name.trim(), price, duration_minutes: duration }).select("id,name,price,duration_minutes").single();
+    if (error || !data) return notify("ثبت خدمت انجام نشد.");
+    const next = { id: data.id, name: data.name, price: Number(data.price), duration: data.duration_minutes };
     setServices((items) => [...items, next]);
     setServiceForm({ name: "", price: "", duration: "30" });
     notify("خدمت ثبت شد.");
@@ -83,8 +89,10 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
 
   async function addStaff() {
     if (!staffForm.name.trim() || !staffForm.role.trim()) return;
-    const next = { id: Date.now(), name: staffForm.name.trim(), role: staffForm.role.trim() };
-    if (businessId) await supabase.from("business_staff").insert({ business_id: businessId, name: next.name, role: next.role });
+    if (!resolvedBusinessId) return;
+    const { data, error } = await supabase.from("business_staff").insert({ business_id: resolvedBusinessId, name: staffForm.name.trim(), role: staffForm.role.trim() }).select("id,name,role").single();
+    if (error || !data) return notify("ثبت کارکن انجام نشد.");
+    const next = { id: data.id, name: data.name, role: data.role };
     setStaff((items) => [...items, next]);
     setStaffForm({ name: "", role: "" });
     notify("کارکن ثبت شد.");
@@ -92,16 +100,22 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
 
   async function addAppointment() {
     if (!appointmentForm.customer || !appointmentForm.service || !appointmentForm.staff || !appointmentForm.time) return;
-    const next = { id: Date.now(), time: appointmentForm.time, ...appointmentForm, status: "رزرو" as const };
-    if (businessId) {
-      const customer = customers.find((x) => x.name === next.customer); const service = services.find((x) => x.name === next.service); const worker = staff.find((x) => x.name === next.staff);
-      if (customer && service && worker) await supabase.from("business_appointments").insert({ business_id: businessId, customer_id: customer.id, service_id: service.id, staff_id: worker.id, starts_at: new Date().toISOString(), status: "reserved" });
-    }
+    if (!resolvedBusinessId) return;
+    const customer = customers.find((x) => x.name === appointmentForm.customer); const service = services.find((x) => x.name === appointmentForm.service); const worker = staff.find((x) => x.name === appointmentForm.staff);
+    if (!customer || !service || !worker) return notify("اطلاعات نوبت ناقص است.");
+    const today = new Date(); const [hh, mm] = appointmentForm.time.split(":").map(Number); if (Number.isFinite(hh) && Number.isFinite(mm)) today.setHours(hh, mm, 0, 0);
+    const { data, error } = await supabase.from("business_appointments").insert({ business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id, staff_id: worker.id, starts_at: today.toISOString(), status: "reserved" }).select("id,starts_at,status").single();
+    if (error || !data) return notify("ثبت نوبت انجام نشد.");
+    const next = { id: data.id, time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.starts_at)), customer: customer.name, service: service.name, staff: worker.name, status: "رزرو" as const };
     setAppointments((items) => [...items, next]);
     notify("نوبت ثبت شد.");
   }
 
-  function updateAppointment(id: number, status: Appointment["status"]) {
+  async function updateAppointment(id: string, status: Appointment["status"]) {
+    if (!resolvedBusinessId) return;
+    const dbStatus = status === "انجام شد" ? "completed" : "cancelled";
+    const { error } = await supabase.from("business_appointments").update({ status: dbStatus }).eq("id", id).eq("business_id", resolvedBusinessId);
+    if (error) return notify("تغییر وضعیت نوبت انجام نشد.");
     setAppointments((items) => items.map((item) => item.id === id ? { ...item, status } : item));
     notify(status === "انجام شد" ? "نوبت تکمیل شد." : "نوبت لغو شد.");
   }
@@ -109,11 +123,52 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
   async function addPayment() {
     const amount = Number(paymentForm.amount);
     if (!paymentForm.customer || !paymentForm.service || !amount) return;
-    const next = { id: Date.now(), customer: paymentForm.customer, service: paymentForm.service, amount, method: paymentForm.method };
-    if (businessId) { const customer = customers.find((x) => x.name === next.customer); const service = services.find((x) => x.name === next.service); if (customer && service) await supabase.from("business_payments").insert({ business_id: businessId, customer_id: customer.id, service_id: service.id, amount: next.amount, method: next.method === "کارت" ? "card" : "cash" }); }
+    if (!resolvedBusinessId) return;
+    const customer = customers.find((x) => x.name === paymentForm.customer); const service = services.find((x) => x.name === paymentForm.service); if (!customer || !service) return notify("اطلاعات پرداخت ناقص است.");
+    const { data, error } = await supabase.from("business_payments").insert({ business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id, amount, method: paymentForm.method === "کارت" ? "card" : "cash" }).select("id,amount,method").single();
+    if (error || !data) return notify("ثبت پرداخت انجام نشد.");
+    const next = { id: data.id, customer: customer.name, service: service.name, amount: Number(data.amount), method: data.method === "card" ? "کارت" as const : "نقدی" as const };
     setPayments((items) => [...items, next]);
     notify("پرداخت ثبت شد.");
   }
+
+  useEffect(() => {
+    let alive = true;
+    async function loadWorkspace() {
+      if (!businessSlug) { setLoading(false); return; }
+      setLoading(true);
+      const { data: business } = await supabase.from("businesses").select("id,name,phone,address,online_booking").eq("slug", businessSlug).maybeSingle();
+      if (!business) { setLoading(false); return; }
+      const [customerResult, serviceResult, staffResult, appointmentResult, paymentResult] = await Promise.all([
+        supabase.from("business_customers").select("id,name,phone").eq("business_id", business.id).order("created_at", { ascending: true }),
+        supabase.from("business_services").select("id,name,price,duration_minutes").eq("business_id", business.id).eq("active", true).order("created_at", { ascending: true }),
+        supabase.from("business_staff").select("id,name,role").eq("business_id", business.id).eq("active", true).order("created_at", { ascending: true }),
+        supabase.from("business_appointments").select("id,starts_at,status,business_customers(name),business_services(name),business_staff(name)").eq("business_id", business.id).order("starts_at", { ascending: true }),
+        supabase.from("business_payments").select("id,amount,method,paid_at,business_customers(name),business_services(name)").eq("business_id", business.id).order("paid_at", { ascending: false }).limit(50),
+      ]);
+      if (!alive) return;
+      setResolvedBusinessId(business.id);
+      if (customerResult.data) setCustomers(customerResult.data);
+      if (serviceResult.data) setServices(serviceResult.data.map((x) => ({ id: x.id, name: x.name, price: Number(x.price), duration: x.duration_minutes })));
+      if (staffResult.data) setStaff(staffResult.data);
+      if (appointmentResult.data) setAppointments(appointmentResult.data.map((x: any) => ({
+        id: x.id,
+        time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(x.starts_at)),
+        customer: x.business_customers?.name ?? "مشتری",
+        service: x.business_services?.name ?? "خدمت",
+        staff: x.business_staff?.name ?? "کارکن",
+        status: x.status === "completed" ? "انجام شد" : x.status === "cancelled" ? "لغو شد" : "رزرو",
+      })));
+      if (paymentResult.data) setPayments(paymentResult.data.map((x: any) => ({
+        id: x.id, customer: x.business_customers?.name ?? "مشتری", service: x.business_services?.name ?? "خدمت", amount: Number(x.amount),
+        method: x.method === "card" ? "کارت" : "نقدی",
+      })));
+      setSettings({ name: business.name ?? name, phone: business.phone ?? "", address: business.address ?? "", booking: Boolean(business.online_booking) });
+      setLoading(false);
+    }
+    loadWorkspace();
+    return () => { alive = false; };
+  }, [businessSlug, name, supabase]);
 
   const filteredCustomers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -126,7 +181,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessId }: { name
   const nav = ["داشبورد", "نوبت‌ها", "مشتریان", "خدمات", "کارکنان", "فروش و پرداخت", "گزارش‌ها", "تنظیمات"];
 
   return (
-    <div dir="rtl" className="relative min-h-full bg-slate-950 text-white">
+    <div dir="rtl" className="relative min-h-full bg-slate-950 text-white">\n      {loading && <div className="border-b border-cyan-400/10 bg-cyan-400/5 px-5 py-2 text-center text-xs font-bold text-cyan-200">در حال بارگذاری اطلاعات واقعی آرایشگاه…</div>}
       {toast && <div className="fixed bottom-5 right-5 z-[90] rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200 shadow-xl">{toast}</div>}
       <div className="border-b border-white/10 p-5 sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
