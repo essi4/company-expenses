@@ -164,7 +164,7 @@ begin
 
   if not exists (select 1 from public.business_payments where business_id=b and customer_id=c1 and amount=280000) then
     insert into public.business_payments(business_id,customer_id,service_id,amount,method)
-    values (b,c1,s1,280000,'card');
+    values (b,c1,s1,280000,'card_terminal');
   end if;
 
   if not exists (select 1 from public.business_payments where business_id=b and customer_id=c3 and amount=420000) then
