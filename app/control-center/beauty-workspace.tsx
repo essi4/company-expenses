@@ -10,30 +10,30 @@ type Appointment = { id: string; time: string; customer: string; service: string
 type Payment = { id: string; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };
 
 const initialCustomers: Customer[] = [
-  { id: 1, name: "امیر رضایی", phone: "۰۹۱۲۱۲۳۴۵۶۷" },
-  { id: 2, name: "محمد احمدی", phone: "۰۹۳۵۱۲۳۴۵۶۷" },
-  { id: 3, name: "علی کریمی", phone: "۰۹۱۷۱۲۳۴۵۶۷" },
+  { id: "demo-customer-1", name: "امیر رضایی", phone: "۰۹۱۲۱۲۳۴۵۶۷" },
+  { id: "demo-customer-2", name: "محمد احمدی", phone: "۰۹۳۵۱۲۳۴۵۶۷" },
+  { id: "demo-customer-3", name: "علی کریمی", phone: "۰۹۱۷۱۲۳۴۵۶۷" },
 ];
 
 const initialServices: Service[] = [
-  { id: 1, name: "اصلاح مو", price: 280000, duration: 30 },
-  { id: 2, name: "اصلاح و ریش", price: 420000, duration: 45 },
-  { id: 3, name: "پاکسازی پوست", price: 650000, duration: 60 },
+  { id: "demo-service-1", name: "اصلاح مو", price: 280000, duration: 30 },
+  { id: "demo-service-2", name: "اصلاح و ریش", price: 420000, duration: 45 },
+  { id: "demo-service-3", name: "پاکسازی پوست", price: 650000, duration: 60 },
 ];
 
 const initialStaff: Staff[] = [
-  { id: 1, name: "اسماعیل", role: "آرایشگر ارشد" },
-  { id: 2, name: "رضا", role: "آرایشگر" },
+  { id: "demo-staff-1", name: "اسماعیل", role: "آرایشگر ارشد" },
+  { id: "demo-staff-2", name: "رضا", role: "آرایشگر" },
 ];
 
 const initialAppointments: Appointment[] = [
-  { id: 1, time: "۱۷:۰۰", customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
-  { id: 2, time: "۱۸:۳۰", customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
+  { id: "demo-appointment-1", time: "۱۷:۰۰", customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
+  { id: "demo-appointment-2", time: "۱۸:۳۰", customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
 ];
 
 const initialPayments: Payment[] = [
-  { id: 1, customer: "امیر رضایی", service: "اصلاح مو", amount: 280000, method: "کارت" },
-  { id: 2, customer: "علی کریمی", service: "اصلاح و ریش", amount: 420000, method: "نقدی" },
+  { id: "demo-payment-1", customer: "امیر رضایی", service: "اصلاح مو", amount: 280000, method: "کارت" },
+  { id: "demo-payment-2", customer: "علی کریمی", service: "اصلاح و ریش", amount: 420000, method: "نقدی" },
 ];
 
 const toman = new Intl.NumberFormat("fa-IR");
