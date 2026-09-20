@@ -53,7 +53,10 @@ if (cookies.size === 0) throw new Error("SSR auth did not produce cookies");
 const cookieHeader = Array.from(cookies.entries()).map(([name, value]) => `${name}=${value}`).join("; ");
 
 await expectStatus("Health API", await fetch(`${appUrl}/api/health`), 200);
-await expectStatus("Unauthenticated Control Center API", await fetch(`${appUrl}/api/control-center`), 401);
+const unauthenticated = await fetch(`${appUrl}/api/control-center`, { redirect: "manual" });
+await expectStatus("Unauthenticated Control Center redirect", unauthenticated, 307);
+const location = unauthenticated.headers.get("location") ?? "";
+if (!location.startsWith("/login?next=")) throw new Error(`Unexpected unauthenticated redirect: ${location}`);
 
 const authenticated = await fetch(`${appUrl}/api/control-center`, {
   headers: { Cookie: cookieHeader },
