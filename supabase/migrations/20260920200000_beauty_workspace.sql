@@ -309,14 +309,11 @@ set search_path = public
 as $$
 declare
   b public.businesses;
+  location_id uuid;
   m text;
 begin
-  if auth.uid() is null then
-    raise exception 'not_authenticated';
-  end if;
-  if nullif(trim(p_name), '') is null or nullif(trim(p_slug), '') is null then
-    raise exception 'invalid_business_identity';
-  end if;
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if nullif(trim(p_name), '') is null or nullif(trim(p_slug), '') is null then raise exception 'invalid_business_identity'; end if;
 
   insert into public.businesses(
     name,slug,business_type,mode,plan,status,owner_email,locale,timezone,currency
@@ -326,16 +323,26 @@ begin
   )
   returning * into b;
 
-  foreach m in array array[
-    'customers','appointments','catalog','staff','invoicing','payments','cashier',
-    'ledger','inventory','reports','online_booking','notifications'
+  insert into public.business_locations(
+    business_id,name,code,timezone,locale,currency,active,is_default
+  ) values (
+    b.id,'شعبه اصلی','MAIN',b.timezone,b.locale,b.currency,true,true
+  ) returning id into location_id;
+
+  update public.businesses set default_location_id=location_id where id=b.id;
+
+  foreach m in array ARRAY[
+    'customers','appointments','catalog','staff','invoicing','payments',
+    'cashier','ledger','inventory','reports','online_booking','notifications'
   ] loop
-    insert into public.business_modules(
-      business_id,module_id,state,enabled_at
-    ) values (
+    insert into public.business_modules(business_id,module_id,state,enabled_at)
+    values (
       b.id,m,
-      case when m in ('invoicing','ledger','inventory') then 'disabled' else 'enabled' end,
-      case when m in ('invoicing','ledger','inventory') then null else now() end
+      case
+        when m = 'inventory' then 'disabled'
+        else 'enabled'
+      end,
+      case when m = 'inventory' then null else now() end
     );
   end loop;
 
@@ -344,6 +351,17 @@ begin
     (b.id,'card_terminal','کارتخوان',true,true),
     (b.id,'cash','نقدی',true,false),
     (b.id,'transfer','انتقال',true,false);
+
+  insert into public.business_financial_settings(
+    business_id,invoice_enabled,invoice_optional,auto_issue_invoice,
+    allow_receipt_without_invoice,allow_partial_payment,allow_mixed_payment,
+    default_payment_method,tax_enabled,tax_rate,price_includes_tax
+  ) values (
+    b.id,true,true,false,true,true,true,'card_terminal',false,0,true
+  );
+
+  insert into public.business_document_sequences(business_id,document_type,prefix,next_number)
+  values (b.id,'invoice','',1);
 
   insert into public.business_branding(business_id,theme_key,radius_scale)
   values (b.id,'elegant','comfortable');
@@ -356,8 +374,7 @@ begin
 
   return b;
 exception
-  when unique_violation then
-    raise exception 'business_slug_exists';
+  when unique_violation then raise exception 'business_slug_exists';
 end;
 $$;
 
