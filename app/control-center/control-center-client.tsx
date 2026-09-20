@@ -225,11 +225,22 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
     setCreateForm((form) => ({ ...form, type, mode: firstMode }));
   }
 
-  function activateBusiness(business: Business) {
-    const activated: Business = { ...business, status: "Active", updated: "همین الان" };
+  async function activateBusiness(business: Business) {
+    const response = await fetch(`/api/businesses/${encodeURIComponent(business.slug)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: { status: "Active" } }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.ok) return window.alert("فعال‌سازی Business انجام نشد.");
+    const row = payload.data.business;
+    const activated: Business = {
+      id: row.id, name: row.name, slug: row.slug, type: row.business_type,
+      mode: row.mode, plan: row.plan, status: row.status, owner: row.owner_email ?? business.owner, updated: "همین الان",
+    };
     setBusinesses((items) => items.map((item) => item.id === business.id ? activated : item));
-    setSelected((current) => current?.id === business.id ? activated : current);
-    setWorkspaceBusiness(activated);
+    setSelected(null);
+    router.push(`/business/${encodeURIComponent(activated.slug)}`);
   }
 
   function enterBusiness(business: Business) {
