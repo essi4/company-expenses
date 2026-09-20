@@ -102,3 +102,73 @@ create policy business_appointments_auth on public.business_appointments for all
 
 drop policy if exists business_payments_auth on public.business_payments;
 create policy business_payments_auth on public.business_payments for all using (public.is_authenticated()) with check (public.is_authenticated());
+
+-- Demo operational data for the active puzzle barber workspace.
+do $$
+declare
+  b uuid;
+  c1 uuid; c2 uuid; c3 uuid;
+  s1 uuid; s2 uuid; s3 uuid;
+  w1 uuid; w2 uuid;
+begin
+  select id into b from public.businesses where slug = 'puzzle-barber' limit 1;
+
+  if b is null then
+    raise exception 'puzzle-barber business seed is missing';
+  end if;
+
+  select id into c1 from public.business_customers where business_id=b and phone='۰۹۱۲۱۲۳۴۵۶۷' limit 1;
+  if c1 is null then
+    insert into public.business_customers(business_id,name,phone) values (b,'امیر رضایی','۰۹۱۲۱۲۳۴۵۶۷') returning id into c1;
+  end if;
+  select id into c2 from public.business_customers where business_id=b and phone='۰۹۳۵۱۲۳۴۵۶۷' limit 1;
+  if c2 is null then
+    insert into public.business_customers(business_id,name,phone) values (b,'محمد احمدی','۰۹۳۵۱۲۳۴۵۶۷') returning id into c2;
+  end if;
+  select id into c3 from public.business_customers where business_id=b and phone='۰۹۱۷۱۲۳۴۵۶۷' limit 1;
+  if c3 is null then
+    insert into public.business_customers(business_id,name,phone) values (b,'علی کریمی','۰۹۱۷۱۲۳۴۵۶۷') returning id into c3;
+  end if;
+
+  select id into s1 from public.business_services where business_id=b and name='اصلاح مو' limit 1;
+  if s1 is null then
+    insert into public.business_services(business_id,name,price,duration_minutes) values (b,'اصلاح مو',280000,30) returning id into s1;
+  end if;
+  select id into s2 from public.business_services where business_id=b and name='اصلاح و ریش' limit 1;
+  if s2 is null then
+    insert into public.business_services(business_id,name,price,duration_minutes) values (b,'اصلاح و ریش',420000,45) returning id into s2;
+  end if;
+  select id into s3 from public.business_services where business_id=b and name='پاکسازی پوست' limit 1;
+  if s3 is null then
+    insert into public.business_services(business_id,name,price,duration_minutes) values (b,'پاکسازی پوست',650000,60) returning id into s3;
+  end if;
+
+  select id into w1 from public.business_staff where business_id=b and name='اسماعیل' limit 1;
+  if w1 is null then
+    insert into public.business_staff(business_id,name,role) values (b,'اسماعیل','آرایشگر ارشد') returning id into w1;
+  end if;
+  select id into w2 from public.business_staff where business_id=b and name='رضا' limit 1;
+  if w2 is null then
+    insert into public.business_staff(business_id,name,role) values (b,'رضا','آرایشگر') returning id into w2;
+  end if;
+
+  if not exists (select 1 from public.business_appointments where business_id=b and customer_id=c1 and service_id=s1) then
+    insert into public.business_appointments(business_id,customer_id,service_id,staff_id,starts_at,status)
+    values (b,c1,s1,w1,date_trunc('day',now()) + interval '17 hours','reserved');
+  end if;
+
+  if not exists (select 1 from public.business_appointments where business_id=b and customer_id=c2 and service_id=s2) then
+    insert into public.business_appointments(business_id,customer_id,service_id,staff_id,starts_at,status)
+    values (b,c2,s2,w2,date_trunc('day',now()) + interval '18 hours 30 minutes','reserved');
+  end if;
+
+  if not exists (select 1 from public.business_payments where business_id=b and customer_id=c1 and amount=280000) then
+    insert into public.business_payments(business_id,customer_id,service_id,amount,method)
+    values (b,c1,s1,280000,'card');
+  end if;
+
+  if not exists (select 1 from public.business_payments where business_id=b and customer_id=c3 and amount=420000) then
+    insert into public.business_payments(business_id,customer_id,service_id,amount,method)
+    values (b,c3,s2,420000,'cash');
+  end if;
+end $$;
