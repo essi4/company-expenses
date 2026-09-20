@@ -1,18 +1,16 @@
-"use client";
-
 import Link from "next/link";
 
 const modes = [
-  { icon: "✦", title: "Beauty", text: "آرایشگاه زنانه، مردانه و یونیسکس" },
-  { icon: "🚗", title: "Automotive", text: "روغن‌تعویض، تعمیرگاه، کارواش و خدمات خودرو" },
-  { icon: "✚", title: "Medical", text: "کلینیک، مطب و مراکز درمانی" },
-  { icon: "▦", title: "Services", text: "فروشگاه‌ها و کسب‌وکارهای خدماتی" },
+  { icon: "✦", title: "زیبایی", text: "آرایشگاه زنانه، مردانه و یونیسکس" },
+  { icon: "🚗", title: "خودرو", text: "روغن‌تعویض، تعمیرگاه، کارواش و خدمات خودرو" },
+  { icon: "✚", title: "پزشکی", text: "کلینیک، مطب و مراکز درمانی" },
+  { icon: "▦", title: "خدمات", text: "فروشگاه‌ها و کسب‌وکارهای خدماتی" },
 ];
 
 const layers = [
-  ["01", "Control Center", "مدیریت کل پلتفرم، کسب‌وکارها، اشتراک‌ها و سیاست‌ها"],
-  ["02", "Business Platform", "داشبورد، کارکنان، مشتریان، خدمات، فروش و عملیات"],
-  ["03", "Customer Portal", "رزرو، سوابق، اعلان‌ها، پرداخت و ارتباط با کسب‌وکار"],
+  ["01", "مرکز کنترل", "مدیریت کل پلتفرم، کسب‌وکارها، اشتراک‌ها و سیاست‌ها"],
+  ["02", "پلتفرم کسب‌وکار", "داشبورد، کارکنان، مشتریان، خدمات، فروش و عملیات"],
+  ["03", "پرتال مشتری", "رزرو، سوابق، اعلان‌ها، پرداخت و ارتباط با کسب‌وکار"],
 ];
 
 export default function HomePage() {
@@ -29,7 +27,7 @@ export default function HomePage() {
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-lg font-black text-slate-950">E</span>
             <span>
               <b className="block text-base">EASY</b>
-              <span className="text-xs text-slate-400">Business Platform</span>
+              <span className="text-xs text-slate-400">پلتفرم کسب‌وکار</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-7 text-sm text-slate-300 md:flex">
@@ -48,7 +46,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-12 px-5 pb-16 pt-16 lg:grid-cols-[1.15fr_.85fr] lg:items-center lg:px-8 lg:pb-24 lg:pt-24">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-200">
-              <span className="h-2 w-2 rounded-full bg-cyan-300" /> Multi-Business SaaS
+              <span className="h-2 w-2 rounded-full bg-cyan-300" /> سامانه چندکسب‌وکاره
             </div>
             <h1 className="mt-6 max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl lg:text-7xl">
               یک پلتفرم واحد برای
@@ -63,10 +61,10 @@ export default function HomePage() {
               <a href="#businesses" className="rounded-2xl border border-white/15 px-6 py-3.5 text-center font-bold text-white hover:bg-white/5">دیدن مدل‌های کسب‌وکار</a>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
-              <span>✓ Multi-Tenant</span>
-              <span>✓ Role & Permission</span>
-              <span>✓ Billing & Subscription</span>
-              <span>✓ AI Ready</span>
+              <span>✓ چندمستاجری</span>
+              <span>✓ نقش و دسترسی</span>
+              <span>✓ صورتحساب و اشتراک</span>
+              <span>✓ آماده برای هوش مصنوعی</span>
             </div>
           </div>
 
@@ -74,17 +72,17 @@ export default function HomePage() {
             <div className="rounded-[1.6rem] bg-white p-4 text-slate-900 sm:p-5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <span className="text-xs text-slate-400">EASY Control Center</span>
-                  <h2 className="mt-1 text-lg font-black">Business Management</h2>
+                  <span className="text-xs text-slate-400">مرکز کنترل EASY</span>
+                  <h2 className="mt-1 text-lg font-black">مدیریت کسب‌وکارها</h2>
                 </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Platform Online</span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">پلتفرم آنلاین</span>
               </div>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 {[
-                  ["124", "Businesses"],
-                  ["18", "Plans"],
-                  ["97.8%", "Availability"],
-                  ["12", "Modules"],
+                  ["۱۲۴", "کسب‌وکار"],
+                  ["۱۸", "پلن"],
+                  ["۹۷٫۸٪", "دردسترس‌بودن"],
+                  ["۱۲", "ماژول"],
                 ].map(([value, label]) => (
                   <div key={label} className="rounded-2xl bg-slate-50 p-4">
                     <b className="block text-2xl font-black">{value}</b>
@@ -94,11 +92,11 @@ export default function HomePage() {
               </div>
               <div className="mt-4 rounded-2xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500">Workspace</span>
-                  <span className="text-xs font-black">EASY Demo</span>
+                  <span className="text-xs font-bold text-slate-500">فضای کاری</span>
+                  <span className="text-xs font-black">دموی EASY</span>
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  {["Beauty", "Automotive", "Medical"].map((item) => (
+                  {["زیبایی", "خودرو", "پزشکی"].map((item) => (
                     <div key={item} className="rounded-xl border border-slate-200 px-3 py-3 text-center text-xs font-bold">{item}</div>
                   ))}
                 </div>
@@ -111,9 +109,9 @@ export default function HomePage() {
       <section id="businesses" className="relative z-10 border-y border-white/10 bg-white/[0.025]">
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8">
           <div className="max-w-2xl">
-            <span className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">One Core · Many Businesses</span>
+            <span className="text-xs font-black uppercase tracking-[0.22em] text-cyan-300">یک هسته · چندین کسب‌وکار</span>
             <h2 className="mt-3 text-3xl font-black sm:text-4xl">یک هسته، صدها سناریوی کسب‌وکار</h2>
-            <p className="mt-4 leading-8 text-slate-400">هویت، مشتری، عضویت، نقش، پرداخت و اتوماسیون ثابت می‌ماند؛ فقط Mode و Module متناسب با صنعت فعال می‌شود.</p>
+            <p className="mt-4 leading-8 text-slate-400">هویت، مشتری، عضویت، نقش، پرداخت و اتوماسیون ثابت می‌ماند؛ فقط حالت و ماژول متناسب با صنعت فعال می‌شود.</p>
           </div>
           <div className="mt-9 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {modes.map((mode) => (
@@ -153,8 +151,8 @@ export default function HomePage() {
 
       <footer className="relative z-10 border-t border-white/10">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <span>© EASY Business Platform</span>
-          <span>Core + Business Type + Mode + Modules + Workflow + Theme + Permissions + Plan</span>
+          <span>© پلتفرم کسب‌وکار EASY</span>
+          <span>هسته + نوع کسب‌وکار + حالت + ماژول‌ها + گردش‌کار + پوسته + دسترسی‌ها + پلن</span>
         </div>
       </footer>
     </main>
