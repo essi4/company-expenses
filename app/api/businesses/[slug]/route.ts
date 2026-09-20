@@ -16,14 +16,16 @@ export async function GET(_: Request, { params }: { params: { slug: string } }) 
 
   if (error || !business) return NextResponse.json({ ok: false, error: "business_not_found" }, { status: 404 });
 
-  const [modules, methods, hours, branding] = await Promise.all([
+  const [modules, methods, hours, branding, locations, financialSettings] = await Promise.all([
     supabase.from("business_modules").select("id,module_id,state,config,enabled_at,updated_at").eq("business_id", business.id).order("module_id"),
     supabase.from("business_payment_methods").select("id,method,title,enabled,is_default,provider,config,updated_at").eq("business_id", business.id).order("method"),
     supabase.from("business_working_hours").select("weekday,enabled,open_time,close_time,break_start,break_end").eq("business_id", business.id).order("weekday"),
     supabase.from("business_branding").select("theme_key,primary_color,secondary_color,radius_scale,logo_url,settings").eq("business_id", business.id).maybeSingle(),
+    supabase.from("business_locations").select("id,name,code,phone,address,timezone,locale,currency,active,is_default").eq("business_id", business.id).order("created_at"),
+    supabase.from("business_financial_settings").select("invoice_enabled,invoice_optional,auto_issue_invoice,allow_receipt_without_invoice,allow_partial_payment,allow_mixed_payment,default_payment_method,tax_enabled,tax_rate,price_includes_tax").eq("business_id", business.id).maybeSingle(),
   ]);
 
-  return NextResponse.json({ ok: true, data: { business, modules: modules.data ?? [], paymentMethods: methods.data ?? [], workingHours: hours.data ?? [], branding: branding.data ?? null } });
+  return NextResponse.json({ ok: true, data: { business, modules: modules.data ?? [], paymentMethods: methods.data ?? [], workingHours: hours.data ?? [], branding: branding.data ?? null, locations: locations.data ?? [], financialSettings: financialSettings.data ?? null } });
 }
 
 export async function PATCH(request: Request, { params }: { params: { slug: string } }) {
@@ -80,6 +82,25 @@ export async function PATCH(request: Request, { params }: { params: { slug: stri
       }, { onConflict: "business_id,method" });
       if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     }
+  }
+
+  if (body?.financialSettings && typeof body.financialSettings === "object") {
+    const fs = body.financialSettings;
+    const { error } = await supabase.from("business_financial_settings").upsert({
+      business_id: business.id,
+      invoice_enabled: fs.invoice_enabled !== false,
+      invoice_optional: fs.invoice_optional !== false,
+      auto_issue_invoice: Boolean(fs.auto_issue_invoice),
+      allow_receipt_without_invoice: fs.allow_receipt_without_invoice !== false,
+      allow_partial_payment: fs.allow_partial_payment !== false,
+      allow_mixed_payment: fs.allow_mixed_payment !== false,
+      default_payment_method: fs.default_payment_method ?? "card_terminal",
+      tax_enabled: Boolean(fs.tax_enabled),
+      tax_rate: Number(fs.tax_rate ?? 0),
+      price_includes_tax: fs.price_includes_tax !== false,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "business_id" });
+    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   }
 
   if (Array.isArray(body?.workingHours)) {
