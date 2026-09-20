@@ -22,6 +22,8 @@ export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  const { data: isAdmin } = await supabase.rpc("is_platform_admin");
+  if (!isAdmin) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
 
   const { data, error } = await supabase
     .from("businesses")
