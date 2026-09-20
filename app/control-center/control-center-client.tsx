@@ -83,6 +83,10 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
   const [workspaceBusiness, setWorkspaceBusiness] = useState<Business | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", type: "Beauty" as Business["type"], mode: "Women", plan: "Starter" as Business["plan"], owner: "" });
   const [dataSource, setDataSource] = useState<"database" | "demo">("database");
+  const [businessConfig, setBusinessConfig] = useState<{ modules: { module_id: string; state: "enabled" | "disabled" | "locked" }[]; paymentMethods: { method: string; enabled: boolean; is_default: boolean }[] } | null>(null);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configMessage, setConfigMessage] = useState("");
+
 
   useEffect(() => {
     let active = true;
@@ -107,6 +111,43 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
       .catch(() => active && setDataSource("demo"));
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    let active = true;
+    const blueprint = getBusinessBlueprint(selected.type);
+    setConfigMessage("");
+    setBusinessConfig({
+      modules: blueprint.defaultModules.map((m) => ({ module_id: m.id, state: m.state })),
+      paymentMethods: [
+        { method: "card_terminal", enabled: true, is_default: true },
+        { method: "cash", enabled: true, is_default: false },
+        { method: "transfer", enabled: true, is_default: false },
+      ],
+    });
+    fetch(`/api/businesses/${encodeURIComponent(selected.slug)}`, { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!active || !payload?.ok) return;
+        setBusinessConfig({ modules: payload.data.modules ?? [], paymentMethods: payload.data.paymentMethods ?? [] });
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [selected]);
+
+  async function saveBusinessConfig() {
+    if (!selected || !businessConfig) return;
+    setConfigSaving(true);
+    setConfigMessage("");
+    const response = await fetch(`/api/businesses/${encodeURIComponent(selected.slug)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modules: businessConfig.modules, paymentMethods: businessConfig.paymentMethods }),
+    });
+    const payload = await response.json().catch(() => null);
+    setConfigSaving(false);
+    setConfigMessage(response.ok && payload?.ok ? "تنظیمات ذخیره شد." : "ذخیره تنظیمات انجام نشد؛ ابتدا Migration دیتابیس را اجرا کنید.");
+  }
 
   const current = navSections.find((item) => item.id === section) ?? navSections[1];
 
@@ -418,12 +459,35 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {[["نوع", selected.type === "Beauty" ? "آرایشگاه" : selected.type === "Automotive" ? "خدمات خودرو" : selected.type === "Medical" ? "پزشکی" : "فروشگاه و خدمات"], ["حالت", modeLabel(selected)], ["پلن", selected.plan], ["وضعیت", selected.status === "Active" ? "فعال" : selected.status === "Trial" ? "آزمایشی" : "معلق"], ["مالک", selected.owner], ["آخرین بروزرسانی", selected.updated]].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><span className="text-[10px] text-slate-600">{label}</span><b className="mt-2 block text-sm">{value}</b></div>)}
             </div>
-            <div className="mt-5 rounded-3xl border border-white/10 p-5">
-              <span className="text-[10px] font-black text-slate-500">ماژول‌های فضای کاری</span>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {["Dashboard", "Staff", "Customers", "Services", "Appointments", "Payments", "Reports", "Settings"].map((item) => <div key={item} className="rounded-xl border border-white/10 px-3 py-3 text-xs font-bold text-slate-300">✓ {item}</div>)}
-              </div>
-            </div>
+            {businessConfig && (
+              <>
+                <div className="mt-5 rounded-3xl border border-white/10 p-5">
+                  <div className="flex items-center justify-between gap-3"><span className="text-[10px] font-black text-slate-500">ماژول‌های Business</span><span className="text-[10px] text-slate-600">قابل فعال‌سازی بر اساس Plan</span></div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {businessConfig.modules.map((item) => {
+                      const meta = getBusinessBlueprint(selected.type).defaultModules.find((m) => m.id === item.module_id);
+                      return <label key={item.module_id} className="flex cursor-pointer items-center justify-between rounded-2xl border border-white/10 px-3 py-3">
+                        <span><b className="block text-xs">{meta?.id ?? item.module_id}</b><small className="text-[10px] text-slate-500">{item.state === "locked" ? "قفل شده" : item.state === "enabled" ? "فعال" : "غیرفعال"}</small></span>
+                        <input type="checkbox" disabled={item.state === "locked"} checked={item.state === "enabled"} onChange={(e) => setBusinessConfig((cfg) => cfg ? ({ ...cfg, modules: cfg.modules.map((x) => x.module_id === item.module_id ? { ...x, state: e.target.checked ? "enabled" : "disabled" } : x) }) : cfg)} />
+                      </label>;
+                    })}
+                  </div>
+                </div>
+                <div className="mt-5 rounded-3xl border border-white/10 p-5">
+                  <span className="text-[10px] font-black text-slate-500">روش‌های پرداخت</span>
+                  <div className="mt-3 grid gap-2">
+                    {businessConfig.paymentMethods.map((item) => <label key={item.method} className="flex cursor-pointer items-center justify-between rounded-2xl border border-white/10 px-3 py-3">
+                      <span><b className="block text-xs">{item.method === "card_terminal" ? "کارتخوان" : item.method === "cash" ? "نقدی" : "انتقال"}</b><small className="text-[10px] text-slate-500">{item.is_default ? "پیش‌فرض" : ""}</small></span>
+                      <input type="checkbox" checked={item.enabled} onChange={(e) => setBusinessConfig((cfg) => cfg ? ({ ...cfg, paymentMethods: cfg.paymentMethods.map((x) => x.method === item.method ? { ...x, enabled: e.target.checked, is_default: e.target.checked && x.method === "card_terminal" } : x) }) : cfg)} />
+                    </label>)}
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <button onClick={saveBusinessConfig} disabled={configSaving} className="rounded-2xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 disabled:opacity-50">{configSaving ? "در حال ذخیره..." : "ذخیره تنظیمات Business"}</button>
+                  {configMessage && <span className="text-[10px] font-bold text-emerald-300">{configMessage}</span>}
+                </div>
+              </>
+            )}
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               {selected.status === "Trial" ? <button onClick={() => activateBusiness(selected)} className="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950">فعال‌سازی کسب‌وکار</button> : <button onClick={() => enterBusiness(selected)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950">ورود به کسب‌وکار</button>}
               <button onClick={() => setSelected(null)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300">بستن</button>
