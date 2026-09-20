@@ -511,3 +511,115 @@ $$;
 
 revoke all on function public.next_business_document_number(uuid,text) from public;
 grant execute on function public.next_business_document_number(uuid,text) to authenticated;
+
+
+-- EASY identity-to-business membership boundary.
+create table if not exists public.business_memberships (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ user_id uuid not null references auth.users(id) on delete cascade,
+ role_key text not null default 'staff',
+ status text not null default 'active' check (status in ('active','invited','suspended')),
+ invited_at timestamptz,
+ joined_at timestamptz,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now(),
+ unique(business_id,user_id)
+);
+create index if not exists business_memberships_user_idx on public.business_memberships(user_id,status);
+create index if not exists business_memberships_business_idx on public.business_memberships(business_id,status);
+
+alter table public.business_memberships enable row level security;
+drop policy if exists business_memberships_self on public.business_memberships;
+create policy business_memberships_self on public.business_memberships
+for select to authenticated
+using ((select auth.uid()) = user_id);
+
+alter table public.business_payments add column if not exists idempotency_key text;
+create unique index if not exists business_payments_idempotency_idx
+on public.business_payments(idempotency_key)
+where idempotency_key is not null;
+
+create or replace function public.record_business_invoice_payment(
+  p_business_id uuid,
+  p_invoice_id uuid,
+  p_payments jsonb,
+  p_idempotency_key text
+)
+returns table(invoice_id uuid, paid_amount bigint, due_amount bigint, status text)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  inv public.business_invoices;
+  customer uuid;
+  requested bigint := 0;
+  already_paid boolean := false;
+  item jsonb;
+  method text;
+  part_amount bigint;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if p_payments is null or jsonb_typeof(p_payments) <> 'array' or jsonb_array_length(p_payments) = 0 then
+    raise exception 'invalid_payment_split';
+  end if;
+
+  select * into inv
+  from public.business_invoices
+  where id=p_invoice_id and business_id=p_business_id
+  for update;
+
+  if not found then raise exception 'invoice_not_found'; end if;
+  customer := inv.customer_id;
+  if customer is null then raise exception 'invoice_customer_missing'; end if;
+
+  if p_idempotency_key is not null then
+    select exists(select 1 from public.business_payments where idempotency_key=p_idempotency_key) into already_paid;
+    if already_paid then
+      return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status;
+      return;
+    end if;
+  end if;
+
+  for item in select * from jsonb_array_elements(p_payments) loop
+    method := item->>'method';
+    part_amount := greatest(0, coalesce((item->>'amount')::bigint,0));
+    if method not in ('card_terminal','cash','transfer') then raise exception 'invalid_payment_method'; end if;
+    requested := requested + part_amount;
+  end loop;
+
+  if requested <= 0 or requested > greatest(0,inv.total_amount-inv.paid_amount) then
+    raise exception 'invalid_payment_amount';
+  end if;
+
+  for item in select * from jsonb_array_elements(p_payments) loop
+    method := item->>'method';
+    part_amount := greatest(0, coalesce((item->>'amount')::bigint,0));
+    if part_amount > 0 then
+      insert into public.business_payments(
+        business_id,customer_id,appointment_id,amount,method,status,idempotency_key
+      )
+      values (
+        p_business_id,customer,null,part_amount,method,'paid',
+        case when p_idempotency_key is null then null else p_idempotency_key || ':' || method end
+      );
+    end if;
+  end loop;
+
+  update public.business_invoices
+  set paid_amount = paid_amount + requested,
+      status = case when paid_amount + requested >= total_amount then 'paid' else 'partially_paid' end
+  where id=inv.id;
+
+  select * into inv from public.business_invoices where id=inv.id;
+  return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status;
+exception
+  when unique_violation then
+    select * into inv from public.business_invoices where id=p_invoice_id and business_id=p_business_id;
+    return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status;
+end;
+$$;
+
+revoke all on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) from public;
+grant execute on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) to authenticated;
