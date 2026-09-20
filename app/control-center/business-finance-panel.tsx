@@ -90,7 +90,7 @@ export default function BusinessFinancePanel({
     const amount = Number(quick.amount);
     if (!customer || !service || amount <= 0) return notify("مبلغ و اطلاعات پرداخت را کامل کنید.");
 
-    const idempotencyKey = `quick:${businessId}:${customer.id}:${service.id}:${amount}:${quick.method}`;
+    const idempotencyKey = `quick:${businessId}:${crypto.randomUUID()}`;
     const { data, error } = await supabase.rpc("record_business_quick_payment", {
       p_business_id: businessId,
       p_customer_id: customer.id,
