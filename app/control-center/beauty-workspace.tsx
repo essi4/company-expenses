@@ -7,7 +7,7 @@ type Customer = { id: string; name: string; phone: string };
 type Service = { id: string; name: string; price: number; duration: number };
 type Staff = { id: string; name: string; role: string };
 type Appointment = { id: string; date: string; time: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
-type Payment = { id: string; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };
+type Payment = { id: string; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };\ntype Invoice = { id: string; number: string; customer: string; subtotal: number; discount: number; total: number; status: string; paid: boolean };
 
 const initialCustomers: Customer[] = [
   { id: "demo-customer-1", name: "امیر رضایی", phone: "۰۹۱۲۱۲۳۴۵۶۷" },
@@ -149,6 +149,45 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
     notify("پرداخت ثبت شد.");
   }
 
+  async function createInvoice() {
+    if (!resolvedBusinessId) return;
+    const customer = customers.find((x) => x.name === invoiceCustomer);
+    const service = services.find((x) => x.name === invoiceService);
+    if (!customer || !service) return notify("مشتری و خدمت را انتخاب کنید.");
+    const subtotal = service.price;
+    const discount = Math.max(0, Math.min(Number(invoiceDiscount) || 0, subtotal));
+    const total = subtotal - discount;
+    const invoiceNumber = `PZ-${new Date().getTime().toString().slice(-8)}`;
+    const { data: invoice, error } = await supabase.from("business_invoices").insert({
+      business_id: resolvedBusinessId, customer_id: customer.id, invoice_number: invoiceNumber,
+      subtotal, discount_amount: discount, total_amount: total, status: "issued"
+    }).select("id,invoice_number,subtotal,discount_amount,total_amount,status").single();
+    if (error || !invoice) return notify("صدور فاکتور انجام نشد.");
+    const { error: itemError } = await supabase.from("business_invoice_items").insert({
+      invoice_id: invoice.id, service_id: service.id, description: service.name,
+      quantity: 1, unit_price: service.price, discount_amount: discount, line_total: total
+    });
+    if (itemError) return notify("آیتم فاکتور ثبت نشد.");
+    setInvoices((items) => [...items, { id: invoice.id, number: invoice.invoice_number, customer: customer.name, subtotal, discount, total, status: "صادر شده", paid: false }]);
+    notify(`فاکتور ${invoiceNumber} صادر شد.`);
+  }
+
+  async function payInvoice(invoice: Invoice) {
+    if (!resolvedBusinessId) return;
+    const customer = customers.find((x) => x.name === invoice.customer);
+    const service = services.find((x) => x.name === invoiceService) ?? services[0];
+    if (!customer || !service) return notify("اطلاعات پرداخت فاکتور ناقص است.");
+    const { error } = await supabase.from("business_payments").insert({
+      business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id,
+      amount: invoice.total, method: "card", status: "paid"
+    });
+    if (error) return notify("پرداخت فاکتور ثبت نشد.");
+    await supabase.from("business_invoices").update({ status: "paid" }).eq("id", invoice.id).eq("business_id", resolvedBusinessId);
+    setInvoices((items) => items.map((x) => x.id === invoice.id ? { ...x, status: "پرداخت شده", paid: true } : x));
+    setPayments((items) => [...items, { id: `invoice-${invoice.id}`, customer: invoice.customer, service: service.name, amount: invoice.total, method: "کارت" }]);
+    notify("پرداخت فاکتور ثبت شد.");
+  }
+
   useEffect(() => {
     let alive = true;
     async function loadWorkspace() {
@@ -156,12 +195,13 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
       setLoading(true);
       const { data: business } = await supabase.from("businesses").select("id,name,phone,address,online_booking").eq("slug", businessSlug).maybeSingle();
       if (!business) { setLoading(false); return; }
-      const [customerResult, serviceResult, staffResult, appointmentResult, paymentResult] = await Promise.all([
+      const [customerResult, serviceResult, staffResult, appointmentResult, paymentResult, invoiceResult] = await Promise.all([
         supabase.from("business_customers").select("id,name,phone").eq("business_id", business.id).order("created_at", { ascending: true }),
         supabase.from("business_services").select("id,name,price,duration_minutes").eq("business_id", business.id).eq("active", true).order("created_at", { ascending: true }),
         supabase.from("business_staff").select("id,name,role").eq("business_id", business.id).eq("active", true).order("created_at", { ascending: true }),
         supabase.from("business_appointments").select("id,starts_at,status,business_customers(name),business_services(name),business_staff(name)").eq("business_id", business.id).order("starts_at", { ascending: true }),
         supabase.from("business_payments").select("id,amount,method,paid_at,business_customers(name),business_services(name)").eq("business_id", business.id).order("paid_at", { ascending: false }).limit(50),
+        supabase.from("business_invoices").select("id,invoice_number,subtotal,discount_amount,total_amount,status,business_customers(name)").eq("business_id", business.id).order("issued_at", { ascending: false }).limit(50),
       ]);
       if (!alive) return;
       setResolvedBusinessId(business.id);
@@ -177,6 +217,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
         staff: x.business_staff?.name ?? "کارکن",
         status: x.status === "completed" ? "انجام شد" : x.status === "cancelled" ? "لغو شد" : "رزرو",
       })));
+      if (invoiceResult.data) setInvoices(invoiceResult.data.map((x: any) => ({ id: x.id, number: x.invoice_number, customer: x.business_customers?.name ?? "مشتری", subtotal: Number(x.subtotal), discount: Number(x.discount_amount), total: Number(x.total_amount), status: x.status === "paid" ? "پرداخت شده" : "صادر شده", paid: x.status === "paid" })));
       if (paymentResult.data) setPayments(paymentResult.data.map((x: any) => ({
         id: x.id, customer: x.business_customers?.name ?? "مشتری", service: x.business_services?.name ?? "خدمت", amount: Number(x.amount),
         method: x.method === "card" ? "کارت" : "نقدی",
