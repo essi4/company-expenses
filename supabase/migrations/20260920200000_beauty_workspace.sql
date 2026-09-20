@@ -1044,3 +1044,195 @@ $$;
 revoke all on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) from public;
 grant execute on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) to authenticated;
 
+
+
+-- EASY module entitlements: plan + business-category defaults are data, not code.
+create table if not exists public.platform_module_catalog (
+ module_id text primary key,
+ title text not null,
+ description text not null,
+ group_key text not null default 'core',
+ active boolean not null default true,
+ created_at timestamptz not null default now()
+);
+
+create table if not exists public.platform_plan_module_entitlements (
+ plan_key text not null,
+ module_id text not null references public.platform_module_catalog(module_id) on delete cascade,
+ enabled boolean not null default true,
+ config jsonb not null default '{}',
+ primary key(plan_key,module_id)
+);
+
+create table if not exists public.platform_category_module_defaults (
+ business_type text not null,
+ module_id text not null references public.platform_module_catalog(module_id) on delete cascade,
+ enabled_by_default boolean not null default false,
+ primary key(business_type,module_id)
+);
+
+alter table public.platform_module_catalog enable row level security;
+alter table public.platform_plan_module_entitlements enable row level security;
+alter table public.platform_category_module_defaults enable row level security;
+
+drop policy if exists platform_module_catalog_read on public.platform_module_catalog;
+create policy platform_module_catalog_read on public.platform_module_catalog
+for select to authenticated using (true);
+
+drop policy if exists platform_plan_module_entitlements_read on public.platform_plan_module_entitlements;
+create policy platform_plan_module_entitlements_read on public.platform_plan_module_entitlements
+for select to authenticated using (true);
+
+drop policy if exists platform_category_module_defaults_read on public.platform_category_module_defaults;
+create policy platform_category_module_defaults_read on public.platform_category_module_defaults
+for select to authenticated using (true);
+
+insert into public.platform_module_catalog(module_id,title,description,group_key)
+values
+('customers','مشتریان','مدیریت مشتری، پرونده و ارتباطات','core'),
+('appointments','نوبت‌ها','رزرو، تقویم و وضعیت نوبت','operations'),
+('catalog','خدمات و کالا','کاتالوگ خدمات، محصولات و قیمت‌ها','commerce'),
+('staff','کارکنان','کارکنان، نقش‌ها و ظرفیت کاری','operations'),
+('invoicing','فاکتور','فاکتور، رسید و اسناد فروش','commerce'),
+('payments','پرداخت','کارتخوان، نقدی، انتقال و پرداخت ترکیبی','finance'),
+('cashier','صندوق','دریافت، پرداخت و شیفت صندوق','finance'),
+('ledger','دفتر مالی','ثبت رویدادهای مالی و تسویه','finance'),
+('inventory','انبار','موجودی، ورود و خروج کالا','commerce'),
+('reports','گزارش‌ها','گزارش عملیاتی و مالی','analytics'),
+('online_booking','رزرو آنلاین','رزرو از Customer Portal','engagement'),
+('notifications','اعلان‌ها','پیام، یادآوری و کمپین','engagement')
+on conflict (module_id) do update set title=excluded.title,description=excluded.description,group_key=excluded.group_key,active=true;
+
+insert into public.platform_plan_module_entitlements(plan_key,module_id,enabled)
+select p.plan_key,m.module_id,
+       case
+         when p.plan_key='Starter' then m.module_id in ('customers','appointments','catalog','staff','payments','reports')
+         when p.plan_key='Professional' then true
+         when p.plan_key='Enterprise' then true
+         else false
+       end
+from (values ('Starter'),('Professional'),('Enterprise')) p(plan_key)
+cross join public.platform_module_catalog m
+on conflict (plan_key,module_id) do update set enabled=excluded.enabled;
+
+do $$
+declare
+  category text;
+  module_id text;
+  modules jsonb := '{
+    "Beauty":["customers","appointments","catalog","staff","payments","reports","online_booking","notifications"],
+    "Automotive":["customers","appointments","catalog","staff","payments","cashier","reports","inventory","notifications"],
+    "Medical":["customers","appointments","catalog","staff","payments","cashier","reports","notifications"],
+    "Retail":["customers","catalog","staff","payments","cashier","inventory","reports","notifications"],
+    "Services":["customers","appointments","catalog","staff","payments","cashier","reports","notifications"],
+    "Hospitality":["customers","appointments","catalog","staff","payments","cashier","reports","inventory","notifications"],
+    "Education":["customers","appointments","catalog","staff","payments","cashier","reports","notifications"],
+    "Fitness":["customers","appointments","catalog","staff","payments","cashier","reports","notifications"],
+    "Professional":["customers","appointments","catalog","staff","payments","reports","notifications"],
+    "Other":["customers","catalog","staff","payments","reports","notifications"]
+  }'::jsonb;
+begin
+  for category, modules in select key,value from jsonb_each(modules) loop
+    for module_id in select jsonb_array_elements_text(modules) loop
+      insert into public.platform_category_module_defaults(business_type,module_id,enabled_by_default)
+      values(category,module_id,true)
+      on conflict (business_type,module_id) do update set enabled_by_default=true;
+    end loop;
+  end loop;
+end $$;
+
+create or replace function public.create_business_workspace(
+  p_name text,
+  p_slug text,
+  p_business_type text,
+  p_mode text,
+  p_plan text,
+  p_owner_email text,
+  p_locale text default 'fa-IR',
+  p_timezone text default 'Asia/Tehran',
+  p_currency text default 'IRR'
+)
+returns public.businesses
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  b public.businesses;
+  location_id uuid;
+  m record;
+  module_state text;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if nullif(trim(p_name), '') is null or nullif(trim(p_slug), '') is null then raise exception 'invalid_business_identity'; end if;
+
+  insert into public.businesses(
+    name,slug,business_type,mode,plan,status,owner_email,locale,timezone,currency
+  ) values (
+    trim(p_name),trim(p_slug),p_business_type,p_mode,coalesce(nullif(trim(p_plan),''),'Starter'),
+    'Trial',nullif(trim(p_owner_email),''),coalesce(p_locale,'fa-IR'),coalesce(p_timezone,'Asia/Tehran'),coalesce(p_currency,'IRR')
+  )
+  returning * into b;
+
+  insert into public.business_memberships(business_id,user_id,role_key,status,joined_at)
+  values (b.id,auth.uid(),'business_owner','active',now());
+
+  insert into public.business_locations(business_id,name,code,timezone,locale,currency,active,is_default)
+  values (b.id,'شعبه اصلی','MAIN',b.timezone,b.locale,b.currency,true,true)
+  returning id into location_id;
+
+  update public.businesses set default_location_id=location_id where id=b.id;
+
+  for m in select module_id from public.platform_module_catalog where active=true order by module_id loop
+    if not exists (
+      select 1 from public.platform_plan_module_entitlements e
+      where e.plan_key=b.plan and e.module_id=m.module_id and e.enabled=true
+    ) then
+      module_state := 'locked';
+    elsif exists (
+      select 1 from public.platform_category_module_defaults d
+      where d.business_type=b.business_type and d.module_id=m.module_id and d.enabled_by_default=true
+    ) then
+      module_state := 'enabled';
+    else
+      module_state := 'disabled';
+    end if;
+
+    insert into public.business_modules(business_id,module_id,state,enabled_at)
+    values (b.id,m.module_id,module_state,case when module_state='enabled' then now() else null end);
+  end loop;
+
+  insert into public.business_payment_methods(business_id,method,title,enabled,is_default)
+  values
+    (b.id,'card_terminal','کارتخوان',true,true),
+    (b.id,'cash','نقدی',true,false),
+    (b.id,'transfer','انتقال',false,false);
+
+  insert into public.business_financial_settings(
+    business_id,invoice_enabled,invoice_optional,auto_issue_invoice,
+    allow_receipt_without_invoice,allow_partial_payment,allow_mixed_payment,
+    default_payment_method,tax_enabled,tax_rate,price_includes_tax
+  ) values (
+    b.id,true,true,false,true,true,true,'card_terminal',false,0,true
+  );
+
+  insert into public.business_document_sequences(business_id,document_type,prefix,next_number)
+  values (b.id,'invoice','',1),(b.id,'receipt','R-',1);
+
+  insert into public.business_branding(business_id,theme_key,radius_scale)
+  values (b.id,'elegant','comfortable');
+
+  insert into public.business_working_hours(business_id,weekday,enabled,open_time,close_time)
+  values
+    (b.id,0,true,'09:00','21:00'),(b.id,1,true,'09:00','21:00'),(b.id,2,true,'09:00','21:00'),
+    (b.id,3,true,'09:00','21:00'),(b.id,4,true,'09:00','21:00'),(b.id,5,true,'10:00','18:00'),
+    (b.id,6,false,null,null);
+
+  return b;
+exception
+  when unique_violation then raise exception 'business_slug_exists';
+end;
+$$;
+
+revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
+grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
