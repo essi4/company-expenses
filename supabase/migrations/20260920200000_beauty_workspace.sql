@@ -1012,10 +1012,10 @@ begin
     part_amount := greatest(0,coalesce((item->>'amount')::bigint,0));
     if part_amount > 0 then
       insert into public.business_payments(
-        business_id,customer_id,appointment_id,amount,method,status,idempotency_key,payment_group_key
+        business_id,customer_id,invoice_id,appointment_id,amount,method,status,idempotency_key,payment_group_key
       )
       values (
-        p_business_id,customer,null,part_amount,method,'paid',
+        p_business_id,customer,inv.id,null,part_amount,method,'paid',
         case when p_idempotency_key is null then null else p_idempotency_key || ':' || method end,
         group_key
       );
