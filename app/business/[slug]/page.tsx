@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBusinessBlueprint } from "@/packages/easy-platform/core/business-blueprints";
 import type { BusinessCategory } from "@/packages/easy-platform/core/types";
 import BeautyWorkspace from "@/app/control-center/beauty-workspace";
+import BusinessWorkspaceClient from "./business-workspace-client";
 
 export const dynamic = "force-dynamic";
 
@@ -38,26 +39,35 @@ export default async function BusinessWorkspacePage({ params }: { params: { slug
     return <BeautyWorkspace name={business.name} mode={business.mode} plan={business.plan} businessSlug={business.slug} />;
   }
 
-  return (
-    <main dir="rtl" className="min-h-screen bg-slate-950 p-4 text-white sm:p-6">
-      <div className="mx-auto max-w-[1500px]">
-        <header className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <span className="text-[10px] font-black text-cyan-300">EASY BUSINESS WORKSPACE</span>
-              <h1 className="mt-2 text-2xl font-black">{business.name}</h1>
-              <p className="mt-1 text-xs text-slate-400">{blueprint.title} · {business.mode} · {business.plan}</p>
-            </div>
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-300">فعال</span>
-          </div>
-        </header>
-        <section className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {blueprint.defaultModules.filter((m) => m.state === "enabled").map((m) => {
-            const meta = blueprint.recommendedFeatures.find((x) => x.toLowerCase().includes(m.id.replace("_"," "))) ?? "ماژول عملیاتی";
-            return <article key={m.id} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><span className="text-[10px] font-black text-slate-500">{m.id}</span><h2 className="mt-2 font-black">{meta}</h2><p className="mt-2 text-xs leading-6 text-slate-500">این ماژول از Core مشترک EASY استفاده می‌کند و بدون تغییر هسته قابل توسعه است.</p></article>;
-          })}
-        </section>
-      </div>
-    </main>
-  );
+  const [modulesResult, customersResult, servicesResult, appointmentsResult, paymentsResult] = await Promise.all([
+    supabase.from("business_modules").select("module_id,state").eq("business_id", business.id).order("module_id"),
+    supabase.from("business_customers").select("id", { count: "exact", head: true }).eq("business_id", business.id),
+    supabase.from("business_services").select("id", { count: "exact", head: true }).eq("business_id", business.id).eq("active", true),
+    supabase.from("business_appointments").select("id", { count: "exact", head: true }).eq("business_id", business.id),
+    supabase.from("business_payments").select("id,amount", { count: "exact" }).eq("business_id", business.id).eq("status", "paid"),
+  ]);
+
+  const sales = (paymentsResult.data ?? []).reduce((sum: number, row: { amount?: number | string }) => sum + Number(row.amount ?? 0), 0);
+  return <BusinessWorkspaceClient
+    business={{
+      id: business.id,
+      name: business.name,
+      slug: business.slug,
+      business_type: business.business_type,
+      mode: business.mode,
+      plan: business.plan,
+      locale: "fa-IR",
+      timezone: "Asia/Tehran",
+      currency: "IRR",
+    }}
+    blueprint={blueprint}
+    modules={modulesResult.data ?? blueprint.defaultModules.map((m) => ({ module_id: m.id, state: m.state }))}
+    summary={{
+      customers: customersResult.count ?? 0,
+      services: servicesResult.count ?? 0,
+      appointments: appointmentsResult.count ?? 0,
+      payments: paymentsResult.count ?? 0,
+      sales,
+    }}
+  />;
 }
