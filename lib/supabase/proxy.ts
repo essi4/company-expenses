@@ -6,7 +6,7 @@ export async function updateSession(request: NextRequest) {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const pathname = request.nextUrl.pathname;
     const isPublic =
-      pathname.startsWith("/login") ||
+      pathname === "/" ||\n      pathname.startsWith("/login") ||
       pathname.startsWith("/auth/") ||
       pathname.startsWith("/_next/") ||
       pathname === "/favicon.ico" ||
