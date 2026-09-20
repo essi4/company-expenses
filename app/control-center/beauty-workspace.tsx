@@ -28,7 +28,7 @@ const initialStaff: Staff[] = [
 ];
 
 const initialAppointments: Appointment[] = [
-  { id: "demo-appointment-1", date: dateKey(), time: "۱۷:۰۰", customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
+  { id: "demo-appointment-1", date: dateKey(), time: "۱۷:۰۰", startsAt: `${dateKey()}T17:00:00`, customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
   { id: "demo-appointment-2", date: dateKey(), time: "۱۸:۳۰", startsAt: `${dateKey()}T18:30:00`, customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
 ];
 
