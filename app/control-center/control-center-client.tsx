@@ -23,20 +23,20 @@ const seedBusinesses: Business[] = [
 ];
 
 const navSections = [
-  { id: "overview", label: "داشبورد", en: "Overview", icon: "⌂" },
-  { id: "businesses", label: "مدیریت کسب‌وکارها", en: "مدیریت کسب‌وکارها", icon: "▣" },
-  { id: "users", label: "کاربران و دسترسی", en: "Users & Access", icon: "♙" },
+  { id: "overview", label: "داشبورد", en: "", icon: "⌂" },
+  { id: "businesses", label: "مدیریت کسب‌وکارها", en: "", icon: "▣" },
+  { id: "users", label: "کاربران و دسترسی", en: "", icon: "♙" },
   { id: "subscriptions", label: "اشتراک‌ها و پلن‌ها", en: "", icon: "◆" },
   { id: "marketplace", label: "بازارچه", en: "", icon: "⬢" },
   { id: "ai", label: "هوش مصنوعی EASY", en: "", icon: "✦" },
   { id: "governance", label: "حاکمیت و سیاست‌گذاری", en: "", icon: "◈" },
   { id: "identity", label: "هویت و دسترسی", en: "", icon: "◎" },
-  { id: "infrastructure", label: "زیرساخت جهانی", en: "Infrastructure", icon: "◇" },
-  { id: "data", label: "داده و تحلیل", en: "Data & Analytics", icon: "▤" },
+  { id: "infrastructure", label: "زیرساخت جهانی", en: "", icon: "◇" },
+  { id: "data", label: "داده و تحلیل", en: "", icon: "▤" },
   { id: "developers", label: "پلتفرم توسعه‌دهندگان", en: "", icon: "</>" },
   { id: "partners", label: "شرکای تجاری", en: "", icon: "∞" },
   { id: "reliability", label: "پایداری و بازیابی", en: "", icon: "◉" },
-  { id: "security", label: "مرکز امنیت", en: "Security Operations", icon: "⬟" },
+  { id: "security", label: "مرکز امنیت", en: "", icon: "⬟" },
   { id: "enterprise", label: "کنترل سازمانی", en: "", icon: "▦" },
   { id: "architecture", label: "قفل معماری", en: "", icon: "⌘" },
 ];
