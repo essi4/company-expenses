@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import BeautyWorkspace from "./beauty-workspace";
 import type { BusinessCategory } from "@/packages/easy-platform/core/types";
 import { getBusinessBlueprint } from "@/packages/easy-platform/core/business-blueprints";
+import EasyField from "@/components/easy-field";
 
 type Business = {
   id: string;
@@ -434,11 +435,29 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
               <button onClick={() => setShowCreate(false)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold text-slate-400">نام کسب‌وکار</span><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="مثلاً سالن نیلوفر" className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">نوع کسب‌وکار</span><select value={createForm.type} onChange={(e) => changeCreateType(e.target.value as Business["type"])} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option value="Beauty">آرایشگاه</option><option value="Automotive">خدمات خودرو</option><option value="Medical">پزشکی</option><option value="Services">فروشگاه و خدمات</option></select></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">حالت کسب‌وکار</span><select value={createForm.mode} onChange={(e) => setCreateForm({ ...createForm, mode: e.target.value })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm">{modeOptions[createForm.type].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">پلن اشتراک</span><select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value as Business["plan"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Starter</option><option>Professional</option><option>Enterprise</option></select></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">ایمیل مالک</span><input type="email" value={createForm.owner} onChange={(e) => setCreateForm({ ...createForm, owner: e.target.value })} placeholder={userEmail} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
+              <div className="sm:col-span-2">
+                <EasyField label="نام کسب‌وکار" required help="این نام در Workspace و پروفایل عمومی Business نمایش داده می‌شود.">
+                  <input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="مثلاً سالن نیلوفر" className="easy-field" />
+                </EasyField>
+              </div>
+              <EasyField label="دسته کسب‌وکار" required>
+                <select value={createForm.type} onChange={(e) => changeCreateType(e.target.value as Business["type"])} className="easy-field">
+                  {Object.keys(modeOptions).map((key) => <option key={key} value={key}>{getBusinessBlueprint(key as BusinessCategory).title}</option>)}
+                </select>
+              </EasyField>
+              <EasyField label="نوع فعالیت" required>
+                <select value={createForm.mode} onChange={(e) => setCreateForm({ ...createForm, mode: e.target.value })} className="easy-field">
+                  {modeOptions[createForm.type].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </EasyField>
+              <EasyField label="پلن اشتراک" required>
+                <select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value as Business["plan"] })} className="easy-field">
+                  <option>Starter</option><option>Professional</option><option>Enterprise</option>
+                </select>
+              </EasyField>
+              <EasyField label="ایمیل مالک" help="می‌توان آن را هنگام دعوت مالک هم تعیین کرد.">
+                <input type="email" dir="ltr" value={createForm.owner} onChange={(e) => setCreateForm({ ...createForm, owner: e.target.value })} placeholder={userEmail} className="easy-field" />
+              </EasyField>
             </div>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
               <button onClick={createBusiness} disabled={!createForm.name.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-40">ساخت Business</button>
