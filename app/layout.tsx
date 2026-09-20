@@ -1,10 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 import PwaRegister from "./pwa-register";
 
 const geistSans = localFont({ src: "./fonts/GeistVF.woff", variable: "--font-geist-sans", weight: "100 900" });
 const geistMono = localFont({ src: "./fonts/GeistMonoVF.woff", variable: "--font-geist-mono", weight: "100 900" });
+const vazirmatn = Vazirmatn({
+  subsets: ["arabic"],
+  variable: "--font-vazirmatn",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -32,7 +39,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fa" dir="rtl">
-      <body className={`${geistSans.variable} ${geistMono.variable} font-persian`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${vazirmatn.variable} font-persian`}>
         {children}
         <PwaRegister />
       </body>
