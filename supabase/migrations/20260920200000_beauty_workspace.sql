@@ -172,3 +172,36 @@ begin
     values (b,c3,s2,420000,'cash');
   end if;
 end $$;
+
+
+create table if not exists public.business_invoices (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ customer_id uuid references public.business_customers(id) on delete set null,
+ appointment_id uuid references public.business_appointments(id) on delete set null,
+ invoice_number text not null,
+ subtotal bigint not null default 0,
+ discount_amount bigint not null default 0,
+ total_amount bigint not null default 0,
+ status text not null default 'issued',
+ issued_at timestamptz not null default now(),
+ due_at timestamptz,
+ notes text,
+ unique(business_id, invoice_number)
+);
+create table if not exists public.business_invoice_items (
+ id uuid primary key default gen_random_uuid(),
+ invoice_id uuid not null references public.business_invoices(id) on delete cascade,
+ service_id uuid references public.business_services(id) on delete set null,
+ description text not null,
+ quantity integer not null default 1 check(quantity > 0),
+ unit_price bigint not null default 0 check(unit_price >= 0),
+ discount_amount bigint not null default 0 check(discount_amount >= 0),
+ line_total bigint not null default 0 check(line_total >= 0)
+);
+alter table public.business_invoices enable row level security;
+alter table public.business_invoice_items enable row level security;
+drop policy if exists business_invoices_auth on public.business_invoices;
+create policy business_invoices_auth on public.business_invoices for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_invoice_items_auth on public.business_invoice_items;
+create policy business_invoice_items_auth on public.business_invoice_items for all using (public.is_authenticated()) with check (public.is_authenticated());
