@@ -16,6 +16,7 @@ type Invoice = {
   total: number;
   status: string;
   paidAmount: number;
+}
 };
 
 const toman = new Intl.NumberFormat("fa-IR");
@@ -49,7 +50,7 @@ export default function BusinessFinancePanel({
     let active = true;
     supabase
       .from("business_invoices")
-      .select("id,invoice_number,subtotal,discount_amount,total_amount,status,business_customers(name)")
+      .select("id,invoice_number,subtotal,discount_amount,total_amount,paid_amount,status,business_customers(name)")
       .eq("business_id", businessId)
       .order("issued_at", { ascending: false })
       .limit(50)
@@ -63,7 +64,7 @@ export default function BusinessFinancePanel({
           discount: Number(x.discount_amount),
           total: Number(x.total_amount),
           status: x.status === "paid" ? "پرداخت شده" : "صادر شده",
-          paidAmount: x.status === "paid" ? Number(x.total_amount) : 0,
+          paidAmount: Number(x.paid_amount ?? 0),
         })));
       });
     return () => { active = false; };
@@ -150,18 +151,21 @@ export default function BusinessFinancePanel({
     notify(`فاکتور ${invoiceNumber} صادر شد.`);
   }
 
-  async function payInvoice(invoice: Invoice) {
+  async function payInvoice(invoice: Invoice, requestedAmount: number) {
     const customer = customers.find((x) => x.name === invoice.customer);
     if (!customer) return notify("مشتری فاکتور پیدا نشد.");
+    const due = Math.max(0, invoice.total - invoice.paidAmount);
+    const amount = Math.max(0, Math.min(Math.round(requestedAmount), due));
+    if (amount <= 0) return notify("مبلغ پرداخت معتبر نیست.");
 
     const cash = invoicePaymentMethod === "cash"
-      ? invoice.total
+      ? amount
       : invoicePaymentMethod === "mixed"
-        ? Math.max(0, Math.min(mixedCash, invoice.total))
+        ? Math.max(0, Math.min(mixedCash, amount))
         : 0;
     const card = invoicePaymentMethod === "card_terminal"
-      ? invoice.total
-      : invoice.total - cash;
+      ? amount
+      : amount - cash;
 
     const rows = [];
     if (cash > 0) rows.push({ business_id: businessId, customer_id: customer.id, invoice_id: invoice.id, amount: cash, method: "cash", status: "paid" });
@@ -170,8 +174,18 @@ export default function BusinessFinancePanel({
     const { error } = await supabase.from("business_payments").insert(rows);
     if (error) return notify("پرداخت فاکتور ثبت نشد.");
 
-    await supabase.from("business_invoices").update({ status: "paid" }).eq("id", invoice.id).eq("business_id", businessId);
-    setInvoices((items) => items.map((x) => x.id === invoice.id ? { ...x, status: "پرداخت شده", paidAmount: invoice.total } : x));
+    const nextPaid = invoice.paidAmount + amount;
+    const nextStatus = nextPaid >= invoice.total ? "paid" : "partially_paid";
+    const { error: invoiceError } = await supabase.from("business_invoices")
+      .update({ paid_amount: nextPaid, status: nextStatus })
+      .eq("id", invoice.id)
+      .eq("business_id", businessId);
+    if (invoiceError) return notify("وضعیت فاکتور به‌روزرسانی نشد.");
+    setInvoices((items) => items.map((x) => x.id === invoice.id ? {
+      ...x,
+      status: nextStatus === "paid" ? "پرداخت شده" : "پرداخت ناقص",
+      paidAmount: nextPaid,
+    } : x));
     notify("پرداخت فاکتور ثبت شد.");
   }
 
@@ -236,11 +250,15 @@ export default function BusinessFinancePanel({
             <div key={invoice.id} className="grid gap-3 rounded-2xl border border-white/10 p-4 lg:grid-cols-[1.2fr_1fr_1fr_auto] lg:items-center">
               <div><b className="block text-sm">{invoice.number}</b><span className="text-[10px] text-slate-500">{invoice.customer}</span></div>
               <div className="text-xs">مبلغ: <b>{toman.format(invoice.total)} ریال</b></div>
-              <div className="text-xs">وضعیت: <span className="font-bold text-emerald-300">{invoice.status}</span></div>
-              {!invoice.paidAmount && <div className="flex flex-wrap gap-2 lg:justify-end">
+              <div className="text-xs"><span>پرداخت: {toman.format(invoice.paidAmount)} ریال</span><br/><span>مانده: <b>{toman.format(Math.max(0, invoice.total - invoice.paidAmount))} ریال</b></span><br/><span>وضعیت: <b className="text-emerald-300">{invoice.status}</b></span></div>
+              {invoice.paidAmount < invoice.total && <div className="flex flex-wrap gap-2 lg:justify-end">
                 <select value={invoicePaymentMethod} onChange={(e) => setInvoicePaymentMethod(e.target.value as InvoicePaymentMethod)} className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-[10px]"><option value="card_terminal">کارتخوان</option><option value="cash">نقدی</option><option value="mixed">ترکیبی</option></select>
                 {invoicePaymentMethod === "mixed" && <input type="number" min="0" value={mixedCash} onChange={(e) => setMixedCash(Number(e.target.value) || 0)} placeholder="نقدی" className="w-24 rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-[10px]" />}
-                <button type="button" onClick={() => payInvoice(invoice)} className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black text-slate-950">ثبت پرداخت</button>
+                <input type="number" min="1" max={Math.max(1, invoice.total - invoice.paidAmount)} defaultValue={Math.max(1, invoice.total - invoice.paidAmount)} className="w-28 rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-[10px]" aria-label="مبلغ پرداخت" data-payment-amount={invoice.id} />
+                <button type="button" onClick={(event) => {
+                  const input = event.currentTarget.parentElement?.querySelector<HTMLInputElement>(`[data-payment-amount="${invoice.id}"]`);
+                  payInvoice(invoice, Number(input?.value || 0));
+                }} className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black text-slate-950">ثبت پرداخت</button>
               </div>}
             </div>
           ))}
