@@ -76,6 +76,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
   const [typeFilter, setTypeFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);
+  const [workspaceBusiness, setWorkspaceBusiness] = useState<Business | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", type: "Beauty" as Business["type"], mode: "Women", plan: "Starter" as Business["plan"], owner: "" });
 
   const current = navSections.find((item) => item.id === section) ?? navSections[1];
@@ -121,6 +122,50 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
     setShowCreate(false);
     setSelected(business);
     go("businesses");
+  }
+
+  const modeOptions: Record<Business["type"], { value: string; label: string }[]> = {
+    Beauty: [
+      { value: "Women", label: "زنانه" },
+      { value: "Men", label: "مردانه" },
+      { value: "Unisex", label: "یونیسکس" },
+    ],
+    Automotive: [
+      { value: "Oil Change", label: "تعویض روغن" },
+      { value: "Repair", label: "تعمیرگاه" },
+      { value: "Car Wash", label: "کارواش" },
+      { value: "Auto Center", label: "مرکز خدمات خودرو" },
+    ],
+    Medical: [
+      { value: "Clinic", label: "کلینیک" },
+      { value: "Doctor Office", label: "مطب" },
+    ],
+    Services: [
+      { value: "Retail", label: "فروشگاه" },
+      { value: "Services", label: "خدمات" },
+    ],
+  };
+
+  function modeLabel(business: Business) {
+    return modeOptions[business.type]?.find((item) => item.value === business.mode)?.label ?? business.mode;
+  }
+
+  function changeCreateType(type: Business["type"]) {
+    const firstMode = modeOptions[type][0]?.value ?? "";
+    setCreateForm((form) => ({ ...form, type, mode: firstMode }));
+  }
+
+  function activateBusiness(business: Business) {
+    const activated: Business = { ...business, status: "Active", updated: "همین الان" };
+    setBusinesses((items) => items.map((item) => item.id === business.id ? activated : item));
+    setSelected((current) => current?.id === business.id ? activated : current);
+    setWorkspaceBusiness(activated);
+  }
+
+  function enterBusiness(business: Business) {
+    if (business.status !== "Active") return;
+    setSelected(null);
+    setWorkspaceBusiness(business);
   }
 
   async function signOut() {
@@ -254,11 +299,11 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
                       {filtered.map((business) => (
                         <tr key={business.id} className="hover:bg-white/[0.025]">
                           <td className="px-4 py-4"><button onClick={() => setSelected(business)} className="text-right"><b className="block text-sm">{business.name}</b><span className="mt-1 block text-[10px] text-slate-600">{business.id} · {business.slug}</span></button></td>
-                          <td className="px-4 py-4"><span className="block text-xs font-bold text-slate-200">{business.type}</span><span className="text-[10px] text-slate-500">{business.mode}</span></td>
+                          <td className="px-4 py-4"><span className="block text-xs font-bold text-slate-200">{business.type === "Beauty" ? "آرایشگاه" : business.type === "Automotive" ? "خدمات خودرو" : business.type === "Medical" ? "پزشکی" : "فروشگاه و خدمات"}</span><span className="text-[10px] text-slate-500">{modeLabel(business)}</span></td>
                           <td className="px-4 py-4 text-xs text-slate-400">{business.owner}</td>
                           <td className="px-4 py-4"><span className="rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-black">{business.plan}</span></td>
                           <td className="px-4 py-4"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${badgeClass(business.status)}`}>{business.status}</span></td>
-                          <td className="px-4 py-4"><div className="flex gap-2"><button onClick={() => setSelected(business)} className="rounded-xl border border-white/10 px-3 py-2 text-[10px] font-bold">جزئیات</button><button onClick={() => go("businesses")} className="rounded-xl bg-white px-3 py-2 text-[10px] font-black text-slate-950">Enter</button></div></td>
+                          <td className="px-4 py-4"><div className="flex flex-wrap gap-2"><button onClick={() => setSelected(business)} className="rounded-xl border border-white/10 px-3 py-2 text-[10px] font-bold">جزئیات</button>{business.status === "Trial" ? <button onClick={() => activateBusiness(business)} className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black text-slate-950">فعال‌سازی</button> : <button onClick={() => enterBusiness(business)} className="rounded-xl bg-white px-3 py-2 text-[10px] font-black text-slate-950">ورود</button>}</div></td>
                         </tr>
                       ))}
                       {!filtered.length && <tr><td colSpan={6} className="px-4 py-16 text-center"><b className="block text-sm">نتیجه‌ای پیدا نشد</b><span className="mt-2 block text-xs text-slate-500">فیلترها را پاک کنید یا Business جدید بسازید.</span></td></tr>}
@@ -309,14 +354,60 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold text-slate-400">نام کسب‌وکار</span><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="مثلاً سالن نیلوفر" className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">نوع کسب‌وکار</span><select value={createForm.type} onChange={(e) => setCreateForm({ ...createForm, type: e.target.value as Business["type"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Beauty</option><option>Automotive</option><option>Medical</option><option>Services</option></select></label>
-              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">Mode</span><input value={createForm.mode} onChange={(e) => setCreateForm({ ...createForm, mode: e.target.value })} placeholder="Women / Oil Change / Clinic..." className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">نوع کسب‌وکار</span><select value={createForm.type} onChange={(e) => changeCreateType(e.target.value as Business["type"])} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option value="Beauty">آرایشگاه</option><option value="Automotive">خدمات خودرو</option><option value="Medical">پزشکی</option><option value="Services">فروشگاه و خدمات</option></select></label>
+              <label><span className="mb-1.5 block text-xs font-bold text-slate-400">حالت کسب‌وکار</span><select value={createForm.mode} onChange={(e) => setCreateForm({ ...createForm, mode: e.target.value })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm">{modeOptions[createForm.type].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
               <label><span className="mb-1.5 block text-xs font-bold text-slate-400">پلن اشتراک</span><select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value as Business["plan"] })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option>Starter</option><option>Professional</option><option>Enterprise</option></select></label>
               <label><span className="mb-1.5 block text-xs font-bold text-slate-400">ایمیل مالک</span><input type="email" value={createForm.owner} onChange={(e) => setCreateForm({ ...createForm, owner: e.target.value })} placeholder={userEmail} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
             </div>
             <div className="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
               <button onClick={createBusiness} disabled={!createForm.name.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-40">ساخت Business</button>
               <button onClick={() => setShowCreate(false)} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-slate-400">انصراف</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workspaceBusiness && (
+        <div className="fixed inset-0 z-[60] bg-black/80 p-3 sm:p-5" onClick={() => setWorkspaceBusiness(null)}>
+          <div className="mx-auto h-full max-w-6xl overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="border-b border-white/10 p-5 sm:p-7">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span className="text-xs font-black text-cyan-300">فضای کاری کسب‌وکار فعال</span>
+                  <h2 className="mt-2 text-2xl font-black">{workspaceBusiness.name}</h2>
+                  <p className="mt-1 text-sm text-slate-400">آرایشگاه · ${modeLabel(workspaceBusiness)} · ${workspaceBusiness.plan}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-300">● فعال</span>
+                  <button onClick={() => setWorkspaceBusiness(null)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[240px_1fr]">
+              <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-2xl bg-white p-4 text-slate-950">
+                  <b className="block text-base">پازل</b>
+                  <span className="mt-1 block text-[11px] text-slate-500">آرایشگاه مردانه</span>
+                </div>
+                <nav className="mt-4 space-y-2">
+                  {["داشبورد", "نوبت‌ها", "مشتریان", "خدمات", "کارکنان", "فروش و پرداخت", "گزارش‌ها", "تنظیمات"].map((item, index) => <div key={item} className={`rounded-2xl px-4 py-3 text-xs font-bold ${index === 0 ? "bg-cyan-400/10 text-cyan-200" : "text-slate-400"}`}>{item}</div>)}
+                </nav>
+              </aside>
+              <section className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {[["امروز", "۱۲", "نوبت‌ها"], ["مشتریان", "۱۸۴", "فعال"], ["خدمات", "۲۴", "تعریف‌شده"], ["فروش امروز", "۳۴٫۸", "میلیون"]].map(([value, number, label]) => <div key={value} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><span className="text-[10px] text-slate-500">{value}</span><b className="mt-2 block text-2xl font-black">{number}</b><span className="mt-1 block text-xs text-slate-400">{label}</span></div>)}
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+                    <h3 className="font-black">عملیات امروز</h3>
+                    <div className="mt-4 space-y-2">{["نوبت ساعت ۱۷:۰۰ · اصلاح مو", "نوبت ساعت ۱۸:۳۰ · اصلاح و ریش", "رزرو جدید · مشتری جدید"].map((item) => <div key={item} className="rounded-2xl border border-white/10 px-4 py-3 text-xs text-slate-300">{item}</div>)}</div>
+                  </div>
+                  <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+                    <h3 className="font-black">ماژول‌های فعال</h3>
+                    <div className="mt-4 grid grid-cols-2 gap-2">{["نوبت‌دهی", "مشتریان", "خدمات", "کارکنان", "پرداخت", "اعلان‌ها"].map((item) => <div key={item} className="rounded-2xl bg-white/[0.03] px-3 py-3 text-xs font-bold text-slate-300">✓ {item}</div>)}</div>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </div>
@@ -330,7 +421,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
               <button onClick={() => setSelected(null)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {[["Type", selected.type], ["Mode", selected.mode], ["Plan", selected.plan], ["Status", selected.status], ["Owner", selected.owner], ["آخرین بروزرسانی", selected.updated]].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><span className="text-[10px] text-slate-600">{label}</span><b className="mt-2 block text-sm">{value}</b></div>)}
+              {[["نوع", selected.type === "Beauty" ? "آرایشگاه" : selected.type === "Automotive" ? "خدمات خودرو" : selected.type === "Medical" ? "پزشکی" : "فروشگاه و خدمات"], ["حالت", modeLabel(selected)], ["پلن", selected.plan], ["وضعیت", selected.status === "Active" ? "فعال" : selected.status === "Trial" ? "آزمایشی" : "معلق"], ["مالک", selected.owner], ["آخرین بروزرسانی", selected.updated]].map(([label, value]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><span className="text-[10px] text-slate-600">{label}</span><b className="mt-2 block text-sm">{value}</b></div>)}
             </div>
             <div className="mt-5 rounded-3xl border border-white/10 p-5">
               <span className="text-[10px] font-black text-slate-500">ماژول‌های فضای کاری</span>
@@ -339,8 +430,8 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
               </div>
             </div>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <button onClick={() => setSelected(null)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950">ورود به کسب‌وکار</button>
-              <button onClick={() => setSelected(null)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300">ویرایش کسب‌وکار</button>
+              {selected.status === "Trial" ? <button onClick={() => activateBusiness(selected)} className="rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-black text-slate-950">فعال‌سازی کسب‌وکار</button> : <button onClick={() => enterBusiness(selected)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950">ورود به کسب‌وکار</button>}
+              <button onClick={() => setSelected(null)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-slate-300">بستن</button>
             </div>
           </div>
         </div>
