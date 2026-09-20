@@ -828,3 +828,207 @@ $$;
 
 revoke all on function public.record_business_quick_payment(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text,text) from public;
 grant execute on function public.record_business_quick_payment(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text,text) to authenticated;
+
+
+-- EASY security boundary: Platform Admin versus Business membership.
+create table if not exists public.platform_admin_users (
+ user_id uuid primary key references auth.users(id) on delete cascade,
+ enabled boolean not null default true,
+ created_at timestamptz not null default now()
+);
+
+alter table public.platform_admin_users enable row level security;
+drop policy if exists platform_admin_users_self on public.platform_admin_users;
+create policy platform_admin_users_self on public.platform_admin_users
+for select to authenticated
+using ((select auth.uid()) = user_id);
+
+create schema if not exists private;
+
+create or replace function private.is_platform_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select (select auth.uid()) is not null
+    and exists (
+      select 1 from public.platform_admin_users p
+      where p.user_id = (select auth.uid())
+        and p.enabled = true
+    );
+$$;
+
+revoke all on function private.is_platform_admin() from public;
+
+create or replace function public.is_platform_admin()
+returns boolean
+language sql
+stable
+security invoker
+set search_path = public,private
+as $$
+  select private.is_platform_admin();
+$$;
+
+revoke all on function public.is_platform_admin() from public;
+grant execute on function public.is_platform_admin() to authenticated;
+
+create or replace function private.has_business_access(p_business_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select (select auth.uid()) is not null
+    and (
+      private.is_platform_admin()
+      or exists (
+        select 1 from public.business_memberships m
+        where m.business_id = p_business_id
+          and m.user_id = (select auth.uid())
+          and m.status = 'active'
+      )
+    );
+$$;
+
+revoke all on function private.has_business_access(uuid) from public;
+
+-- Business management: platform admins see all; members see only their Business.
+drop policy if exists businesses_auth on public.businesses;
+create policy businesses_select on public.businesses
+for select to authenticated
+using (private.has_business_access(id));
+create policy businesses_insert on public.businesses
+for insert to authenticated
+with check ((select auth.uid()) is not null);
+create policy businesses_update on public.businesses
+for update to authenticated
+using (private.has_business_access(id))
+with check (private.has_business_access(id));
+create policy businesses_delete on public.businesses
+for delete to authenticated
+using (private.is_platform_admin());
+
+drop policy if exists business_customers_auth on public.business_customers;
+create policy business_customers_access on public.business_customers
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_services_auth on public.business_services;
+create policy business_services_access on public.business_services
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_staff_auth on public.business_staff;
+create policy business_staff_access on public.business_staff
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_appointments_auth on public.business_appointments;
+create policy business_appointments_access on public.business_appointments
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_payments_auth on public.business_payments;
+create policy business_payments_access on public.business_payments
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_invoices_auth on public.business_invoices;
+create policy business_invoices_access on public.business_invoices
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_invoice_items_auth on public.business_invoice_items;
+create policy business_invoice_items_access on public.business_invoice_items
+for all to authenticated
+using (
+  exists (
+    select 1 from public.business_invoices i
+    where i.id = invoice_id and private.has_business_access(i.business_id)
+  )
+)
+with check (
+  exists (
+    select 1 from public.business_invoices i
+    where i.id = invoice_id and private.has_business_access(i.business_id)
+  )
+);
+
+drop policy if exists business_modules_auth on public.business_modules;
+create policy business_modules_access on public.business_modules
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_payment_methods_auth on public.business_payment_methods;
+create policy business_payment_methods_access on public.business_payment_methods
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_working_hours_auth on public.business_working_hours;
+create policy business_working_hours_access on public.business_working_hours
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_branding_auth on public.business_branding;
+create policy business_branding_access on public.business_branding
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_locations_auth on public.business_locations;
+create policy business_locations_access on public.business_locations
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_financial_settings_auth on public.business_financial_settings;
+create policy business_financial_settings_access on public.business_financial_settings
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_document_sequences_auth on public.business_document_sequences;
+create policy business_document_sequences_access on public.business_document_sequences
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_audit_events_auth on public.business_audit_events;
+create policy business_audit_events_access on public.business_audit_events
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_receipts_auth on public.business_receipts;
+create policy business_receipts_access on public.business_receipts
+for all to authenticated
+using (private.has_business_access(business_id))
+with check (private.has_business_access(business_id));
+
+drop policy if exists business_memberships_self on public.business_memberships;
+create policy business_memberships_select on public.business_memberships
+for select to authenticated
+using (private.is_platform_admin() or (select auth.uid()) = user_id);
+create policy business_memberships_insert on public.business_memberships
+for insert to authenticated
+with check (private.is_platform_admin() or (select auth.uid()) = user_id);
+create policy business_memberships_update on public.business_memberships
+for update to authenticated
+using (private.is_platform_admin())
+with check (private.is_platform_admin());
+create policy business_memberships_delete on public.business_memberships
+for delete to authenticated
+using (private.is_platform_admin());
