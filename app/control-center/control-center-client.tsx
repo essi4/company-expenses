@@ -7,6 +7,7 @@ import BeautyWorkspace from "./beauty-workspace";
 import type { BusinessCategory } from "@/packages/easy-platform/core/types";
 import { getBusinessBlueprint } from "@/packages/easy-platform/core/business-blueprints";
 import EasyField from "@/components/easy-field";
+import BusinessOnboardingWizard from "./business-onboarding-wizard";
 
 type Business = {
   id: string;
@@ -428,43 +429,16 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 sm:items-center" onClick={() => setShowCreate(false)}>
-          <div className="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-[#0b0f18] p-5 shadow-2xl sm:p-7" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
-              <div><span className="text-xs font-black text-cyan-300">ایجاد کسب‌وکار</span><h2 className="mt-2 text-2xl font-black">ایجاد کسب‌وکار جدید</h2><p className="mt-2 text-xs leading-6 text-slate-500">Workspace اولیه بر اساس Type و Mode انتخابی ساخته می‌شود.</p></div>
-              <button onClick={() => setShowCreate(false)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
-            </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <EasyField label="نام کسب‌وکار" required help="این نام در Workspace و پروفایل عمومی Business نمایش داده می‌شود.">
-                  <input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="مثلاً سالن نیلوفر" className="easy-field" />
-                </EasyField>
-              </div>
-              <EasyField label="دسته کسب‌وکار" required>
-                <select value={createForm.type} onChange={(e) => changeCreateType(e.target.value as Business["type"])} className="easy-field">
-                  {Object.keys(modeOptions).map((key) => <option key={key} value={key}>{getBusinessBlueprint(key as BusinessCategory).title}</option>)}
-                </select>
-              </EasyField>
-              <EasyField label="نوع فعالیت" required>
-                <select value={createForm.mode} onChange={(e) => setCreateForm({ ...createForm, mode: e.target.value })} className="easy-field">
-                  {modeOptions[createForm.type].map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </EasyField>
-              <EasyField label="پلن اشتراک" required>
-                <select value={createForm.plan} onChange={(e) => setCreateForm({ ...createForm, plan: e.target.value as Business["plan"] })} className="easy-field">
-                  <option>Starter</option><option>Professional</option><option>Enterprise</option>
-                </select>
-              </EasyField>
-              <EasyField label="ایمیل مالک" help="می‌توان آن را هنگام دعوت مالک هم تعیین کرد.">
-                <input type="email" dir="ltr" value={createForm.owner} onChange={(e) => setCreateForm({ ...createForm, owner: e.target.value })} placeholder={userEmail} className="easy-field" />
-              </EasyField>
-            </div>
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
-              <button onClick={createBusiness} disabled={!createForm.name.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 disabled:opacity-40">ساخت Business</button>
-              <button onClick={() => setShowCreate(false)} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-bold text-slate-400">انصراف</button>
-            </div>
-          </div>
-        </div>
+        <BusinessOnboardingWizard
+          userEmail={userEmail}
+          onClose={() => setShowCreate(false)}
+          onCreated={(business) => {
+            setBusinesses((items) => [business, ...items.filter((item) => item.id !== business.id)]);
+            setDataSource("database");
+            setShowCreate(false);
+            setSelected(business);
+          }}
+        />
       )}
 
       {workspaceBusiness && (
