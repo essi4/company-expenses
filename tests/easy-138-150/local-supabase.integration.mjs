@@ -156,6 +156,10 @@ const { data: isolatedRows, error: isolationError } = await otherSsr
   .eq("id", businessPayload.data.id);
 if (isolationError) throw new Error(`Business isolation query failed: ${isolationError.message}`);
 if ((isolatedRows ?? []).length !== 0) throw new Error("RLS failure: unrelated authenticated user can read another Business");
+
+const otherCookieHeader = Array.from(otherCookies.entries()).map(([name, value]) => `${name}=${value}`).join("; ");
+await expectStatus("Non-admin Control Center API", await fetch(`${appUrl}/api/control-center`, { headers: { Cookie: otherCookieHeader } }), 403);
+await expectStatus("Non-admin Business management API", await fetch(`${appUrl}/api/businesses`, { headers: { Cookie: otherCookieHeader } }), 403);
 const payload = await authenticated.json();
 if (payload?.ok !== true) throw new Error("Authenticated Control Center API did not return ok=true");
 if (!Array.isArray(payload?.stages) || payload.stages.length !== 13) {
