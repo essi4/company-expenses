@@ -363,3 +363,133 @@ $$;
 
 revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
 grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
+
+
+-- EASY Business scale foundations: locations, financial policies and document numbering.
+create table if not exists public.business_locations (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ name text not null,
+ code text not null,
+ phone text,
+ address text,
+ timezone text not null default 'Asia/Tehran',
+ locale text not null default 'fa-IR',
+ currency text not null default 'IRR',
+ active boolean not null default true,
+ is_default boolean not null default false,
+ created_at timestamptz not null default now(),
+ updated_at timestamptz not null default now(),
+ unique(business_id,code)
+);
+create index if not exists business_locations_business_idx on public.business_locations(business_id);
+
+alter table public.businesses add column if not exists default_location_id uuid;
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname='businesses_default_location_fk'
+  ) then
+    alter table public.businesses
+      add constraint businesses_default_location_fk
+      foreign key(default_location_id) references public.business_locations(id) on delete set null;
+  end if;
+end $$;
+
+create table if not exists public.business_financial_settings (
+ business_id uuid primary key references public.businesses(id) on delete cascade,
+ invoice_enabled boolean not null default true,
+ invoice_optional boolean not null default true,
+ auto_issue_invoice boolean not null default false,
+ allow_receipt_without_invoice boolean not null default true,
+ allow_partial_payment boolean not null default true,
+ allow_mixed_payment boolean not null default true,
+ default_payment_method text not null default 'card_terminal',
+ tax_enabled boolean not null default false,
+ tax_rate numeric(8,4) not null default 0,
+ price_includes_tax boolean not null default true,
+ updated_at timestamptz not null default now()
+);
+
+create table if not exists public.business_document_sequences (
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ document_type text not null,
+ prefix text not null default '',
+ next_number bigint not null default 1 check(next_number > 0),
+ updated_at timestamptz not null default now(),
+ primary key(business_id,document_type)
+);
+
+create table if not exists public.business_audit_events (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ actor_id uuid,
+ action text not null,
+ entity_type text,
+ entity_id uuid,
+ request_id text,
+ metadata jsonb not null default '{}',
+ created_at timestamptz not null default now()
+);
+create index if not exists business_audit_events_lookup_idx on public.business_audit_events(business_id,created_at desc);
+
+alter table public.business_locations enable row level security;
+alter table public.business_financial_settings enable row level security;
+alter table public.business_document_sequences enable row level security;
+alter table public.business_audit_events enable row level security;
+
+drop policy if exists business_locations_auth on public.business_locations;
+create policy business_locations_auth on public.business_locations for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_financial_settings_auth on public.business_financial_settings;
+create policy business_financial_settings_auth on public.business_financial_settings for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_document_sequences_auth on public.business_document_sequences;
+create policy business_document_sequences_auth on public.business_document_sequences for all using (public.is_authenticated()) with check (public.is_authenticated());
+drop policy if exists business_audit_events_auth on public.business_audit_events;
+create policy business_audit_events_auth on public.business_audit_events for all using (public.is_authenticated()) with check (public.is_authenticated());
+
+alter table public.business_services add column if not exists location_id uuid references public.business_locations(id) on delete set null;
+alter table public.business_staff add column if not exists location_id uuid references public.business_locations(id) on delete set null;
+alter table public.business_appointments add column if not exists location_id uuid references public.business_locations(id) on delete set null;
+alter table public.business_payments add column if not exists location_id uuid references public.business_locations(id) on delete set null;
+alter table public.business_invoices add column if not exists location_id uuid references public.business_locations(id) on delete set null;
+
+create index if not exists business_services_location_idx on public.business_services(location_id);
+create index if not exists business_staff_location_idx on public.business_staff(location_id);
+create index if not exists business_appointments_location_idx on public.business_appointments(location_id,starts_at);
+create index if not exists business_payments_location_idx on public.business_payments(location_id,paid_at);
+create index if not exists business_invoices_location_idx on public.business_invoices(location_id,issued_at);
+
+create or replace function public.next_business_document_number(
+  p_business_id uuid,
+  p_document_type text default 'invoice'
+)
+returns text
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  seq public.business_document_sequences;
+  generated text;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+
+  insert into public.business_document_sequences(business_id,document_type,prefix,next_number)
+  values (p_business_id,p_document_type,'',1)
+  on conflict (business_id,document_type) do nothing;
+
+  select * into seq
+  from public.business_document_sequences
+  where business_id=p_business_id and document_type=p_document_type
+  for update;
+
+  generated := seq.prefix || lpad(seq.next_number::text,8,'0');
+  update public.business_document_sequences
+  set next_number=next_number+1, updated_at=now()
+  where business_id=p_business_id and document_type=p_document_type;
+
+  return generated;
+end;
+$$;
+
+revoke all on function public.next_business_document_number(uuid,text) from public;
+grant execute on function public.next_business_document_number(uuid,text) to authenticated;
