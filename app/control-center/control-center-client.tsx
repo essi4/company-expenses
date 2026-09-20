@@ -235,7 +235,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
   function enterBusiness(business: Business) {
     if (business.status !== "Active") return;
     setSelected(null);
-    setWorkspaceBusiness(business);
+    router.push(`/business/${encodeURIComponent(business.slug)}`);
   }
 
   async function signOut() {
