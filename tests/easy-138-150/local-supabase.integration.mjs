@@ -93,6 +93,63 @@ const otherSsr = createServerClient(baseUrl, publishableKey, {
 const { data: otherSignedIn, error: otherSignInError } = await otherSsr.auth.signInWithPassword({ email: otherEmail, password: otherPassword });
 if (otherSignInError || !otherSignedIn.session) throw new Error(`Second auth sign-in failed: ${otherSignInError?.message ?? "no session"}`);
 
+const { data: customer, error: customerInsertError } = await ssr
+  .from("business_customers")
+  .insert({ business_id: businessPayload.data.id, name: "CI Customer", phone: "09000000000" })
+  .select("id")
+  .single();
+if (customerInsertError || !customer) throw new Error(`Customer insert failed: ${customerInsertError?.message ?? "unknown"}`);
+
+const { data: service, error: serviceInsertError } = await ssr
+  .from("business_services")
+  .insert({ business_id: businessPayload.data.id, name: "CI Service", price: 1000, duration_minutes: 30 })
+  .select("id")
+  .single();
+if (serviceInsertError || !service) throw new Error(`Service insert failed: ${serviceInsertError?.message ?? "unknown"}`);
+
+const { data: createdInvoice, error: invoiceCreateError } = await ssr.rpc("create_business_invoice", {
+  p_business_id: businessPayload.data.id,
+  p_customer_id: customer.id,
+  p_location_id: null,
+  p_appointment_id: null,
+  p_items: [{ service_id: service.id, description: "CI Service", quantity: 1, unit_price: 1000 }],
+  p_discount: 0,
+  p_notes: null,
+});
+if (invoiceCreateError || !createdInvoice?.[0]) throw new Error(`Invoice creation failed: ${invoiceCreateError?.message ?? "unknown"}`);
+const invoiceId = createdInvoice[0].invoice_id;
+
+const paymentKey = `ci-payment-${Date.now()}`;
+const { data: partialPayment, error: partialPaymentError } = await ssr.rpc("record_business_invoice_payment", {
+  p_business_id: businessPayload.data.id,
+  p_invoice_id: invoiceId,
+  p_payments: [{ method: "cash", amount: 400 }],
+  p_idempotency_key: paymentKey,
+});
+if (partialPaymentError || !partialPayment?.[0] || Number(partialPayment[0].paid_amount) !== 400 || partialPayment[0].status !== "partially_paid") {
+  throw new Error(`Partial invoice payment failed: ${partialPaymentError?.message ?? "invalid result"}`);
+}
+
+const { data: retryPayment, error: retryPaymentError } = await ssr.rpc("record_business_invoice_payment", {
+  p_business_id: businessPayload.data.id,
+  p_invoice_id: invoiceId,
+  p_payments: [{ method: "cash", amount: 400 }],
+  p_idempotency_key: paymentKey,
+});
+if (retryPaymentError || !retryPayment?.[0] || Number(retryPayment[0].paid_amount) !== 400) {
+  throw new Error(`Payment idempotency failed: ${retryPaymentError?.message ?? "invalid result"}`);
+}
+
+const { data: finalPayment, error: finalPaymentError } = await ssr.rpc("record_business_invoice_payment", {
+  p_business_id: businessPayload.data.id,
+  p_invoice_id: invoiceId,
+  p_payments: [{ method: "card_terminal", amount: 600 }],
+  p_idempotency_key: `ci-payment-final-${Date.now()}`,
+});
+if (finalPaymentError || !finalPayment?.[0] || Number(finalPayment[0].paid_amount) !== 1000 || finalPayment[0].status !== "paid" || !finalPayment[0].receipt_number) {
+  throw new Error(`Final invoice settlement failed: ${finalPaymentError?.message ?? "invalid result"}`);
+}
+
 const { data: isolatedRows, error: isolationError } = await otherSsr
   .from("businesses")
   .select("id")
