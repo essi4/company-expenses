@@ -4,19 +4,19 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type کسب‌وکار = {
+type Business = {
   id: string;
   name: string;
   slug: string;
   type: "Beauty" | "Automotive" | "Medical" | "Services";
   mode: string;
   plan: "Starter" | "Professional" | "Enterprise";
-  status: "فعال" | "آزمایشی" | "معلق";
+  status: "Active" | "Trial" | "Suspended";
   owner: string;
   updated: string;
 };
 
-const seedکسب‌وکارها: Business[] = [
+const seedBusinesses: Business[] = [
   { id: "BUS-001", name: "EASY Demo Beauty", slug: "easy-demo-beauty", type: "Beauty", mode: "Women", plan: "Professional", status: "Active", owner: "demo@easy.local", updated: "امروز" },
   { id: "BUS-002", name: "EASY Auto Center", slug: "easy-auto-center", type: "Automotive", mode: "Oil Change", plan: "Starter", status: "Trial", owner: "auto@easy.local", updated: "دیروز" },
   { id: "BUS-003", name: "EASY Clinic", slug: "easy-clinic", type: "Medical", mode: "Clinic", plan: "Enterprise", status: "Active", owner: "clinic@easy.local", updated: "۲ روز قبل" },
@@ -24,9 +24,9 @@ const seedکسب‌وکارها: Business[] = [
 
 const navSections = [
   { id: "overview", label: "داشبورد", en: "Overview", icon: "⌂" },
-  { id: "businesses", label: "مدیریت کسب‌وکارها", en: "Business Management", icon: "▣" },
+  { id: "businesses", label: "مدیریت کسب‌وکارها", en: "مدیریت کسب‌وکارها", icon: "▣" },
   { id: "users", label: "کاربران و دسترسی", en: "Users & Access", icon: "♙" },
-  { id: "subscriptions", label: "اشتراک‌ها و پلن‌ها", en: "اشتراکs", icon: "◆" },
+  { id: "subscriptions", label: "اشتراک‌ها و پلن‌ها", en: "", icon: "◆" },
   { id: "marketplace", label: "بازارچه", en: "", icon: "⬢" },
   { id: "ai", label: "هوش مصنوعی EASY", en: "", icon: "✦" },
   { id: "governance", label: "حاکمیت و سیاست‌گذاری", en: "", icon: "◈" },
@@ -72,7 +72,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
 
   const [businesses, setBusinesses] = useState(seedBusinesses);
   const [query, setQuery] = useState("");
-  const [statusFilter, setوضعیتFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);
@@ -290,7 +290,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
                     <div className="mt-4 space-y-2">
                       <div className="rounded-2xl bg-white/[0.04] p-4 text-xs font-bold">مرحله ۱۴۹ · کنترل مدیریت</div>
                       <div className="rounded-2xl bg-white/[0.04] p-4 text-xs font-bold">مرحله ۱۵۰ · قفل معماری</div>
-                      <button onClick={() => go("businesses")} className="w-full rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-950">بازگشت به Business Management</button>
+                      <button onClick={() => go("businesses")} className="w-full rounded-2xl bg-white px-4 py-3 text-xs font-black text-slate-950">بازگشت به مدیریت کسب‌وکارها</button>
                     </div>
                   </div>
                 </div>
