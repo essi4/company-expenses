@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 type Customer = { id: string; name: string; phone: string };
 type Service = { id: string; name: string; price: number; duration: number };
 type Staff = { id: string; name: string; role: string };
-type Appointment = { id: string; time: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
+type Appointment = { id: string; date: string; time: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
 type Payment = { id: string; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };
 
 const initialCustomers: Customer[] = [
@@ -27,8 +27,8 @@ const initialStaff: Staff[] = [
 ];
 
 const initialAppointments: Appointment[] = [
-  { id: "demo-appointment-1", time: "۱۷:۰۰", customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
-  { id: "demo-appointment-2", time: "۱۸:۳۰", customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
+  { id: "demo-appointment-1", date: dateKey(), time: "۱۷:۰۰", customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
+  { id: "demo-appointment-2", date: dateKey(), time: "۱۸:۳۰", customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
 ];
 
 const initialPayments: Payment[] = [
@@ -37,6 +37,13 @@ const initialPayments: Payment[] = [
 ];
 
 const toman = new Intl.NumberFormat("fa-IR");
+const dateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+const dateTitle = (value: string) => new Intl.DateTimeFormat("fa-IR", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${value}T12:00:00`));
 
 export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { name: string; mode: string; plan: string; businessSlug?: string }) {
   const [tab, setTab] = useState("داشبورد");
@@ -46,6 +53,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
   const [appointments, setAppointments] = useState(initialAppointments);
   const [payments, setPayments] = useState(initialPayments);
   const [search, setSearch] = useState("");
+  const [calendarDate, setCalendarDate] = useState(dateKey());
   const [toast, setToast] = useState("");
   const supabase = useMemo(() => createClient(), []);
   const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(null);
@@ -54,7 +62,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
   const [customerForm, setCustomerForm] = useState({ name: "", phone: "" });
   const [serviceForm, setServiceForm] = useState({ name: "", price: "", duration: "30" });
   const [staffForm, setStaffForm] = useState({ name: "", role: "" });
-  const [appointmentForm, setAppointmentForm] = useState({ time: "۱۹:۰۰", customer: initialCustomers[0].name, service: initialServices[0].name, staff: initialStaff[0].name });
+  const [appointmentForm, setAppointmentForm] = useState({ date: dateKey(), time: "۱۹:۰۰", customer: initialCustomers[0].name, service: initialServices[0].name, staff: initialStaff[0].name });
   const [paymentForm, setPaymentForm] = useState({ customer: initialCustomers[0].name, service: initialServices[0].name, amount: String(initialServices[0].price), method: "کارت" as Payment["method"] });
   const [settings, setSettings] = useState({ name, phone: "۰۷۱۳۲۲۲۲۲۲۲", address: "شیراز، خیابان نمونه", booking: true });
 
@@ -103,10 +111,10 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
     if (!resolvedBusinessId) return;
     const customer = customers.find((x) => x.name === appointmentForm.customer); const service = services.find((x) => x.name === appointmentForm.service); const worker = staff.find((x) => x.name === appointmentForm.staff);
     if (!customer || !service || !worker) return notify("اطلاعات نوبت ناقص است.");
-    const today = new Date(); const [hh, mm] = appointmentForm.time.split(":").map(Number); if (Number.isFinite(hh) && Number.isFinite(mm)) today.setHours(hh, mm, 0, 0);
+    const today = new Date(`${appointmentForm.date}T12:00:00`); const [hh, mm] = appointmentForm.time.split(":").map(Number); if (Number.isFinite(hh) && Number.isFinite(mm)) today.setHours(hh, mm, 0, 0);
     const { data, error } = await supabase.from("business_appointments").insert({ business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id, staff_id: worker.id, starts_at: today.toISOString(), status: "reserved" }).select("id,starts_at,status").single();
     if (error || !data) return notify("ثبت نوبت انجام نشد.");
-    const next = { id: data.id, time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.starts_at)), customer: customer.name, service: service.name, staff: worker.name, status: "رزرو" as const };
+    const next = { id: data.id, date: dateKey(new Date(data.starts_at)), time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.starts_at)), customer: customer.name, service: service.name, staff: worker.name, status: "رزرو" as const };
     setAppointments((items) => [...items, next]);
     notify("نوبت ثبت شد.");
   }
@@ -162,6 +170,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
       if (staffResult.data) setStaff(staffResult.data);
       if (appointmentResult.data) setAppointments(appointmentResult.data.map((x: any) => ({
         id: x.id,
+        date: dateKey(new Date(x.starts_at)),
         time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(x.starts_at)),
         customer: x.business_customers?.name ?? "مشتری",
         service: x.business_services?.name ?? "خدمت",
@@ -236,8 +245,30 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
           {tab === "نوبت‌ها" && (
             <div className="space-y-4">
               <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div><span className="text-[10px] font-black text-cyan-300">تقویم نوبت‌ها</span><h3 className="mt-1 font-black">{dateTitle(calendarDate)}</h3></div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setCalendarDate(dateKey(new Date(new Date(`${calendarDate}T12:00:00`).getTime() - 86400000)))} className="rounded-xl border border-white/10 px-3 py-2 text-xs">روز قبل</button>
+                    <button type="button" onClick={() => setCalendarDate(dateKey())} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-950">امروز</button>
+                    <button type="button" onClick={() => setCalendarDate(dateKey(new Date(new Date(`${calendarDate}T12:00:00`).getTime() + 86400000)))} className="rounded-xl border border-white/10 px-3 py-2 text-xs">روز بعد</button>
+                  </div>
+                </div>
+                <div className="mt-5 space-y-2">
+                  {Array.from({ length: 13 }, (_, index) => 9 + index).map((hour) => {
+                    const hourAppointments = appointments.filter((item) => item.date === calendarDate && Number(item.time.replace(/[^d]/g, "").slice(0, 2)) === hour);
+                    return <div key={hour} className="grid min-h-16 grid-cols-[68px_1fr] gap-3 border-t border-white/5 pt-2">
+                      <span className="pt-2 text-xs font-bold text-slate-500">{toman.format(hour)}:۰۰</span>
+                      <div className="space-y-2">
+                        {hourAppointments.length === 0 ? <div className="h-10 rounded-xl border border-dashed border-white/5" /> : hourAppointments.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2 text-xs"><span><b>{item.customer}</b> · {item.service} · {item.staff}</span><span className="text-slate-400">{item.time} · {item.status}</span></div>)}
+                      </div>
+                    </div>;
+                  })}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
                 <h3 className="font-black">رزرو نوبت جدید</h3>
-                <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                <div className="mt-4 grid gap-3 sm:grid-cols-5">
+                  <input type="date" value={appointmentForm.date} onChange={(e) => setAppointmentForm({ ...appointmentForm, date: e.target.value })} className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" />
                   <input value={appointmentForm.time} onChange={(e) => setAppointmentForm({ ...appointmentForm, time: e.target.value })} placeholder="ساعت" className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" />
                   <select value={appointmentForm.customer} onChange={(e) => setAppointmentForm({ ...appointmentForm, customer: e.target.value })} className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm">{customers.map((item) => <option key={item.id}>{item.name}</option>)}</select>
                   <select value={appointmentForm.service} onChange={(e) => setAppointmentForm({ ...appointmentForm, service: e.target.value })} className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm">{services.map((item) => <option key={item.id}>{item.name}</option>)}</select>
@@ -246,8 +277,8 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
                 <button type="button" onClick={addAppointment} className="mt-3 rounded-2xl bg-white px-5 py-3 text-xs font-black text-slate-950">ثبت نوبت</button>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-                <h3 className="font-black">نوبت‌ها</h3>
-                <div className="mt-4 space-y-2">{appointments.map((item) => <div key={item.id} className="grid gap-2 rounded-2xl border border-white/10 p-4 sm:grid-cols-[100px_1fr_1fr_auto] sm:items-center"><b className="text-sm">{item.time}</b><span className="text-xs">{item.customer}</span><span className="text-xs text-slate-400">{item.service} · {item.staff}</span><div className="flex gap-2">{item.status === "رزرو" && <><button type="button" onClick={() => updateAppointment(item.id, "انجام شد")} className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black text-slate-950">تکمیل</button><button type="button" onClick={() => updateAppointment(item.id, "لغو شد")} className="rounded-xl border border-white/10 px-3 py-2 text-[10px] font-bold">لغو</button></>}<span className="rounded-xl border border-white/10 px-3 py-2 text-[10px] text-slate-400">{item.status}</span></div></div>)}</div>
+                <div className="flex items-center justify-between"><h3 className="font-black">همه نوبت‌ها</h3><span className="text-[10px] text-slate-500">{appointments.length} نوبت</span></div>
+                <div className="mt-4 space-y-2">{appointments.map((item) => <div key={item.id} className="grid gap-2 rounded-2xl border border-white/10 p-4 sm:grid-cols-[100px_100px_1fr_auto] sm:items-center"><b className="text-sm">{item.date}</b><b className="text-sm">{item.time}</b><span className="text-xs text-slate-400">{item.customer} · {item.service} · {item.staff}</span><div className="flex gap-2">{item.status === "رزرو" && <><button type="button" onClick={() => updateAppointment(item.id, "انجام شد")} className="rounded-xl bg-emerald-400 px-3 py-2 text-[10px] font-black text-slate-950">تکمیل</button><button type="button" onClick={() => updateAppointment(item.id, "لغو شد")} className="rounded-xl border border-white/10 px-3 py-2 text-[10px] font-bold">لغو</button></>}<span className="rounded-xl border border-white/10 px-3 py-2 text-[10px] text-slate-400">{item.status}</span></div></div>)}</div>
               </div>
             </div>
           )}
