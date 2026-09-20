@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import BeautyWorkspace from "./beauty-workspace";
 import type { BusinessCategory } from "@/packages/easy-platform/core/types";
 import { getBusinessBlueprint } from "@/packages/easy-platform/core/business-blueprints";
 import EasyField from "@/components/easy-field";
@@ -82,7 +81,6 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
   const [typeFilter, setTypeFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Business | null>(null);
-  const [workspaceBusiness, setWorkspaceBusiness] = useState<Business | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", type: "Beauty" as Business["type"], mode: "Women", plan: "Starter" as Business["plan"], owner: "" });
   const [dataSource, setDataSource] = useState<"database" | "demo">("database");
   const [businessConfig, setBusinessConfig] = useState<{ modules: { module_id: string; state: "enabled" | "disabled" | "locked" }[]; paymentMethods: { method: string; enabled: boolean; is_default: boolean }[] } | null>(null);
@@ -441,17 +439,7 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
         />
       )}
 
-      {workspaceBusiness && (
-        <div className="fixed inset-0 z-[60] bg-black/80 p-3 sm:p-5" onClick={() => setWorkspaceBusiness(null)}>
-          <div className="mx-auto h-full max-w-6xl overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <BeautyWorkspace
-              name={workspaceBusiness.name}
-              mode={modeLabel(workspaceBusiness)}
-              plan={workspaceBusiness.plan}
-            />
-          </div>
-        </div>
-      )}
+
 
       {selected && (
         <div className="fixed inset-0 z-50 bg-black/70 p-3" onClick={() => setSelected(null)}>
