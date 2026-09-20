@@ -626,3 +626,205 @@ $$;
 
 revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
 grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
+
+
+-- EASY financial document layer: receipts represent settlement evidence even when no invoice exists.
+create table if not exists public.business_receipts (
+ id uuid primary key default gen_random_uuid(),
+ business_id uuid not null references public.businesses(id) on delete cascade,
+ customer_id uuid references public.business_customers(id) on delete set null,
+ invoice_id uuid references public.business_invoices(id) on delete set null,
+ receipt_number text not null,
+ payment_group_key text not null unique,
+ amount bigint not null check(amount > 0),
+ currency text not null default 'IRR',
+ issued_at timestamptz not null default now(),
+ metadata jsonb not null default '{}',
+ unique(business_id,receipt_number)
+);
+create index if not exists business_receipts_business_issued_idx
+on public.business_receipts(business_id,issued_at desc);
+
+alter table public.business_payments add column if not exists payment_group_key text;
+create index if not exists business_payments_group_idx on public.business_payments(payment_group_key);
+
+alter table public.business_receipts enable row level security;
+drop policy if exists business_receipts_auth on public.business_receipts;
+create policy business_receipts_auth on public.business_receipts
+for all using (public.is_authenticated()) with check (public.is_authenticated());
+
+create or replace function public.next_business_receipt_number(
+  p_business_id uuid
+)
+returns text
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  seq public.business_document_sequences;
+  generated text;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+
+  insert into public.business_document_sequences(business_id,document_type,prefix,next_number)
+  values (p_business_id,'receipt','R-',1)
+  on conflict (business_id,document_type) do nothing;
+
+  select * into seq
+  from public.business_document_sequences
+  where business_id=p_business_id and document_type='receipt'
+  for update;
+
+  generated := seq.prefix || lpad(seq.next_number::text,8,'0');
+
+  update public.business_document_sequences
+  set next_number=next_number+1, updated_at=now()
+  where business_id=p_business_id and document_type='receipt';
+
+  return generated;
+end;
+$$;
+
+revoke all on function public.next_business_receipt_number(uuid) from public;
+grant execute on function public.next_business_receipt_number(uuid) to authenticated;
+
+create or replace function public.create_business_invoice(
+  p_business_id uuid,
+  p_customer_id uuid,
+  p_location_id uuid,
+  p_appointment_id uuid,
+  p_items jsonb,
+  p_discount bigint default 0,
+  p_notes text default null
+)
+returns table(invoice_id uuid, invoice_number text, subtotal bigint, discount_amount bigint, total_amount bigint)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  row_item jsonb;
+  inv_id uuid;
+  number text;
+  subtotal_value bigint := 0;
+  discount_value bigint := greatest(0,coalesce(p_discount,0));
+  total_value bigint;
+  qty integer;
+  price bigint;
+  line_total bigint;
+  svc uuid;
+  descr text;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items)=0 then
+    raise exception 'invalid_invoice_items';
+  end if;
+
+  for row_item in select * from jsonb_array_elements(p_items) loop
+    qty := greatest(1,coalesce((row_item->>'quantity')::integer,1));
+    price := greatest(0,coalesce((row_item->>'unit_price')::bigint,0));
+    line_total := qty * price;
+    subtotal_value := subtotal_value + line_total;
+  end loop;
+
+  discount_value := least(discount_value,subtotal_value);
+  total_value := subtotal_value-discount_value;
+  if total_value <= 0 then raise exception 'invalid_invoice_total'; end if;
+
+  number := public.next_business_document_number(p_business_id,'invoice');
+
+  insert into public.business_invoices(
+    business_id,customer_id,appointment_id,location_id,invoice_number,
+    subtotal,discount_amount,total_amount,paid_amount,status,notes
+  )
+  values (
+    p_business_id,p_customer_id,p_appointment_id,p_location_id,number,
+    subtotal_value,discount_value,total_value,0,'issued',p_notes
+  )
+  returning id into inv_id;
+
+  for row_item in select * from jsonb_array_elements(p_items) loop
+    qty := greatest(1,coalesce((row_item->>'quantity')::integer,1));
+    price := greatest(0,coalesce((row_item->>'unit_price')::bigint,0));
+    svc := nullif(row_item->>'service_id','')::uuid;
+    descr := coalesce(nullif(row_item->>'description',''),'خدمت');
+    insert into public.business_invoice_items(
+      invoice_id,service_id,description,quantity,unit_price,discount_amount,line_total
+    )
+    values (
+      inv_id,svc,descr,qty,price,0,qty*price
+    );
+  end loop;
+
+  return query select inv_id,number,subtotal_value,discount_value,total_value;
+end;
+$$;
+
+revoke all on function public.create_business_invoice(uuid,uuid,uuid,uuid,jsonb,bigint,text) from public;
+grant execute on function public.create_business_invoice(uuid,uuid,uuid,uuid,jsonb,bigint,text) to authenticated;
+
+create or replace function public.record_business_quick_payment(
+  p_business_id uuid,
+  p_customer_id uuid,
+  p_service_id uuid,
+  p_appointment_id uuid,
+  p_location_id uuid,
+  p_amount bigint,
+  p_method text,
+  p_currency text default 'IRR',
+  p_reference text default null,
+  p_idempotency_key text default null
+)
+returns table(payment_id uuid, receipt_id uuid, receipt_number text, amount bigint, method text)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  payment_id_value uuid;
+  receipt_id_value uuid;
+  receipt_number_value text;
+  group_key text := coalesce(p_idempotency_key,gen_random_uuid()::text);
+  already boolean;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if p_amount <= 0 then raise exception 'invalid_payment_amount'; end if;
+  if p_method not in ('card_terminal','cash','transfer') then raise exception 'invalid_payment_method'; end if;
+
+  select exists(select 1 from public.business_receipts where payment_group_key=group_key)
+  into already;
+  if already then
+    select r.id,r.receipt_number into receipt_id_value,receipt_number_value
+    from public.business_receipts r where r.payment_group_key=group_key;
+    select p.id into payment_id_value
+    from public.business_payments p where p.payment_group_key=group_key limit 1;
+    return query select payment_id_value,receipt_id_value,receipt_number_value,p_amount,p_method;
+    return;
+  end if;
+
+  insert into public.business_payments(
+    business_id,customer_id,service_id,appointment_id,location_id,amount,method,status,idempotency_key,payment_group_key
+  )
+  values (
+    p_business_id,p_customer_id,p_service_id,p_appointment_id,p_location_id,p_amount,p_method,'paid',
+    p_idempotency_key,group_key
+  )
+  returning id into payment_id_value;
+
+  receipt_number_value := public.next_business_receipt_number(p_business_id);
+  insert into public.business_receipts(
+    business_id,customer_id,receipt_number,payment_group_key,amount,currency,metadata
+  )
+  values (
+    p_business_id,p_customer_id,receipt_number_value,group_key,p_amount,coalesce(p_currency,'IRR'),
+    jsonb_build_object('payment_id',payment_id_value,'reference',p_reference)
+  )
+  returning id into receipt_id_value;
+
+  return query select payment_id_value,receipt_id_value,receipt_number_value,p_amount,p_method;
+end;
+$$;
+
+revoke all on function public.record_business_quick_payment(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text,text) from public;
+grant execute on function public.record_business_quick_payment(uuid,uuid,uuid,uuid,uuid,bigint,text,text,text,text) to authenticated;
