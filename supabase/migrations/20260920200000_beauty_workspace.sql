@@ -208,6 +208,7 @@ create policy business_invoice_items_auth on public.business_invoice_items for a
 
 
 alter table public.business_payments add column if not exists invoice_id uuid references public.business_invoices(id) on delete set null;
+alter table public.business_invoices add column if not exists paid_amount bigint not null default 0 check (paid_amount >= 0);
 create index if not exists business_payments_invoice_idx on public.business_payments(invoice_id);
 
 
