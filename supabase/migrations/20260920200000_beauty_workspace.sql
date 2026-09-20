@@ -205,3 +205,7 @@ drop policy if exists business_invoices_auth on public.business_invoices;
 create policy business_invoices_auth on public.business_invoices for all using (public.is_authenticated()) with check (public.is_authenticated());
 drop policy if exists business_invoice_items_auth on public.business_invoice_items;
 create policy business_invoice_items_auth on public.business_invoice_items for all using (public.is_authenticated()) with check (public.is_authenticated());
+
+
+alter table public.business_payments add column if not exists invoice_id uuid references public.business_invoices(id) on delete set null;
+create index if not exists business_payments_invoice_idx on public.business_payments(invoice_id);
