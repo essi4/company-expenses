@@ -151,8 +151,6 @@ export default function BusinessFinancePanel({
   }
 
   async function payInvoice(invoice: Invoice, requestedAmount: number) {
-    const customer = customers.find((x) => x.name === invoice.customer);
-    if (!customer) return notify("مشتری فاکتور پیدا نشد.");
     const due = Math.max(0, invoice.total - invoice.paidAmount);
     const amount = Math.max(0, Math.min(Math.round(requestedAmount), due));
     if (amount <= 0) return notify("مبلغ پرداخت معتبر نیست.");
@@ -166,26 +164,29 @@ export default function BusinessFinancePanel({
       ? amount
       : amount - cash;
 
-    const rows = [];
-    if (cash > 0) rows.push({ business_id: businessId, customer_id: customer.id, invoice_id: invoice.id, amount: cash, method: "cash", status: "paid" });
-    if (card > 0) rows.push({ business_id: businessId, customer_id: customer.id, invoice_id: invoice.id, amount: card, method: "card_terminal", status: "paid" });
+    const splits = [
+      ...(cash > 0 ? [{ method: "cash", amount: cash }] : []),
+      ...(card > 0 ? [{ method: "card_terminal", amount: card }] : []),
+    ];
+    if (!splits.length) return notify("روش پرداخت معتبر نیست.");
 
-    const { error } = await supabase.from("business_payments").insert(rows);
-    if (error) return notify("پرداخت فاکتور ثبت نشد.");
+    const idempotencyKey = `invoice:${invoice.id}:${invoice.paidAmount + amount}:${splits.map((x) => x.method + "-" + x.amount).join(",")}`;
+    const { data, error } = await supabase.rpc("record_business_invoice_payment", {
+      p_business_id: businessId,
+      p_invoice_id: invoice.id,
+      p_payments: splits,
+      p_idempotency_key: idempotencyKey,
+    });
 
-    const nextPaid = invoice.paidAmount + amount;
-    const nextStatus = nextPaid >= invoice.total ? "paid" : "partially_paid";
-    const { error: invoiceError } = await supabase.from("business_invoices")
-      .update({ paid_amount: nextPaid, status: nextStatus })
-      .eq("id", invoice.id)
-      .eq("business_id", businessId);
-    if (invoiceError) return notify("وضعیت فاکتور به‌روزرسانی نشد.");
+    if (error || !data?.[0]) return notify("پرداخت فاکتور ثبت نشد.");
+
+    const result = data[0];
     setInvoices((items) => items.map((x) => x.id === invoice.id ? {
       ...x,
-      status: nextStatus === "paid" ? "پرداخت شده" : "پرداخت ناقص",
-      paidAmount: nextPaid,
+      status: result.status === "paid" ? "پرداخت شده" : "پرداخت ناقص",
+      paidAmount: Number(result.paid_amount),
     } : x));
-    notify("پرداخت فاکتور ثبت شد.");
+    notify(result.status === "paid" ? "فاکتور کامل تسویه شد." : "بخشی از فاکتور پرداخت شد.");
   }
 
   return (
