@@ -1,4 +1,4 @@
-export type BusinessCategory = "Beauty" | "Automotive" | "Medical" | "Retail" | "Services" | "Hospitality" | "Education" | "Fitness" | "Professional" | "Other";
+import type { BusinessCategory } from "./types";
 export type BusinessMode = string;
 export type CoreModule =
   | "customers" | "appointments" | "catalog" | "staff"
