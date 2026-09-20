@@ -16,7 +16,6 @@ type Invoice = {
   total: number;
   status: string;
   paidAmount: number;
-}
 };
 
 const toman = new Intl.NumberFormat("fa-IR");
