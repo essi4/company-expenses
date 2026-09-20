@@ -449,91 +449,6 @@ create unique index if not exists business_payments_idempotency_idx
 on public.business_payments(idempotency_key)
 where idempotency_key is not null;
 
-create or replace function public.record_business_invoice_payment(
-  p_business_id uuid,
-  p_invoice_id uuid,
-  p_payments jsonb,
-  p_idempotency_key text
-)
-returns table(invoice_id uuid, paid_amount bigint, due_amount bigint, status text)
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  inv public.business_invoices;
-  customer uuid;
-  requested bigint := 0;
-  already_paid boolean := false;
-  item jsonb;
-  method text;
-  part_amount bigint;
-begin
-  if auth.uid() is null then raise exception 'not_authenticated'; end if;
-  if p_payments is null or jsonb_typeof(p_payments) <> 'array' or jsonb_array_length(p_payments) = 0 then
-    raise exception 'invalid_payment_split';
-  end if;
-
-  select * into inv
-  from public.business_invoices
-  where id=p_invoice_id and business_id=p_business_id
-  for update;
-
-  if not found then raise exception 'invoice_not_found'; end if;
-  customer := inv.customer_id;
-  if customer is null then raise exception 'invoice_customer_missing'; end if;
-
-  if p_idempotency_key is not null then
-    select exists(select 1 from public.business_payments where idempotency_key=p_idempotency_key) into already_paid;
-    if already_paid then
-      return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status;
-      return;
-    end if;
-  end if;
-
-  for item in select * from jsonb_array_elements(p_payments) loop
-    method := item->>'method';
-    part_amount := greatest(0, coalesce((item->>'amount')::bigint,0));
-    if method not in ('card_terminal','cash','transfer') then raise exception 'invalid_payment_method'; end if;
-    requested := requested + part_amount;
-  end loop;
-
-  if requested <= 0 or requested > greatest(0,inv.total_amount-inv.paid_amount) then
-    raise exception 'invalid_payment_amount';
-  end if;
-
-  for item in select * from jsonb_array_elements(p_payments) loop
-    method := item->>'method';
-    part_amount := greatest(0, coalesce((item->>'amount')::bigint,0));
-    if part_amount > 0 then
-      insert into public.business_payments(
-        business_id,customer_id,appointment_id,amount,method,status,idempotency_key
-      )
-      values (
-        p_business_id,customer,null,part_amount,method,'paid',
-        case when p_idempotency_key is null then null else p_idempotency_key || ':' || method end
-      );
-    end if;
-  end loop;
-
-  update public.business_invoices
-  set paid_amount = paid_amount + requested,
-      status = case when paid_amount + requested >= total_amount then 'paid' else 'partially_paid' end
-  where id=inv.id;
-
-  select * into inv from public.business_invoices where id=inv.id;
-  return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status;
-exception
-  when unique_violation then
-    select * into inv from public.business_invoices where id=p_invoice_id and business_id=p_business_id;
-    return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status;
-end;
-$$;
-
-revoke all on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) from public;
-grant execute on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) to authenticated;
-
-
 create or replace function public.create_business_workspace(
   p_name text,
   p_slug text,
@@ -626,6 +541,7 @@ $$;
 
 revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
 grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
+
 
 
 -- EASY financial document layer: receipts represent settlement evidence even when no invoice exists.
@@ -1032,3 +948,99 @@ with check (private.is_platform_admin());
 create policy business_memberships_delete on public.business_memberships
 for delete to authenticated
 using (private.is_platform_admin());
+
+
+create or replace function public.record_business_invoice_payment(
+  p_business_id uuid,
+  p_invoice_id uuid,
+  p_payments jsonb,
+  p_idempotency_key text
+)
+returns table(invoice_id uuid, paid_amount bigint, due_amount bigint, status text, receipt_number text)
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  inv public.business_invoices;
+  customer uuid;
+  requested bigint := 0;
+  group_key text := coalesce(p_idempotency_key,gen_random_uuid()::text);
+  existing_receipt text;
+  item jsonb;
+  method text;
+  part_amount bigint;
+  next_status text;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if p_payments is null or jsonb_typeof(p_payments) <> 'array' or jsonb_array_length(p_payments)=0 then
+    raise exception 'invalid_payment_split';
+  end if;
+
+  select * into inv
+  from public.business_invoices
+  where id=p_invoice_id and business_id=p_business_id
+  for update;
+  if not found then raise exception 'invoice_not_found'; end if;
+
+  customer := inv.customer_id;
+  if customer is null then raise exception 'invoice_customer_missing'; end if;
+
+  select r.receipt_number into existing_receipt
+  from public.business_receipts r
+  where r.payment_group_key=group_key
+  limit 1;
+  if existing_receipt is not null then
+    return query
+      select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status,existing_receipt;
+    return;
+  end if;
+
+  for item in select * from jsonb_array_elements(p_payments) loop
+    method := item->>'method';
+    part_amount := greatest(0,coalesce((item->>'amount')::bigint,0));
+    if method not in ('card_terminal','cash','transfer') then raise exception 'invalid_payment_method'; end if;
+    requested := requested + part_amount;
+  end loop;
+
+  if requested <= 0 or requested > greatest(0,inv.total_amount-inv.paid_amount) then
+    raise exception 'invalid_payment_amount';
+  end if;
+
+  for item in select * from jsonb_array_elements(p_payments) loop
+    method := item->>'method';
+    part_amount := greatest(0,coalesce((item->>'amount')::bigint,0));
+    if part_amount > 0 then
+      insert into public.business_payments(
+        business_id,customer_id,appointment_id,amount,method,status,idempotency_key,payment_group_key
+      )
+      values (
+        p_business_id,customer,null,part_amount,method,'paid',
+        case when p_idempotency_key is null then null else p_idempotency_key || ':' || method end,
+        group_key
+      );
+    end if;
+  end loop;
+
+  next_status := case when inv.paid_amount + requested >= inv.total_amount then 'paid' else 'partially_paid' end;
+  update public.business_invoices
+  set paid_amount=paid_amount+requested,status=next_status
+  where id=inv.id;
+
+  existing_receipt := public.next_business_receipt_number(p_business_id);
+  insert into public.business_receipts(
+    business_id,customer_id,invoice_id,receipt_number,payment_group_key,amount,currency,metadata
+  )
+  values (
+    p_business_id,customer,inv.id,existing_receipt,group_key,requested,'IRR',
+    jsonb_build_object('invoice_id',inv.id,'payment_split',p_payments)
+  );
+
+  select * into inv from public.business_invoices where id=inv.id;
+  return query select inv.id,inv.paid_amount,greatest(0,inv.total_amount-inv.paid_amount),inv.status,existing_receipt;
+end;
+$$;
+
+revoke all on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) from public;
+grant execute on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) to authenticated;
+
