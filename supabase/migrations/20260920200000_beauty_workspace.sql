@@ -289,3 +289,77 @@ create policy business_branding_auth on public.business_branding for all using (
 
 create index if not exists businesses_category_status_idx on public.businesses(business_type,status);
 create index if not exists businesses_owner_idx on public.businesses(owner_email);
+
+
+create or replace function public.create_business_workspace(
+  p_name text,
+  p_slug text,
+  p_business_type text,
+  p_mode text,
+  p_plan text,
+  p_owner_email text,
+  p_locale text default 'fa-IR',
+  p_timezone text default 'Asia/Tehran',
+  p_currency text default 'IRR'
+)
+returns public.businesses
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  b public.businesses;
+  m text;
+begin
+  if auth.uid() is null then
+    raise exception 'not_authenticated';
+  end if;
+  if nullif(trim(p_name), '') is null or nullif(trim(p_slug), '') is null then
+    raise exception 'invalid_business_identity';
+  end if;
+
+  insert into public.businesses(
+    name,slug,business_type,mode,plan,status,owner_email,locale,timezone,currency
+  ) values (
+    trim(p_name),trim(p_slug),p_business_type,p_mode,coalesce(nullif(trim(p_plan),''),'Starter'),
+    'Trial',nullif(trim(p_owner_email),''),coalesce(p_locale,'fa-IR'),coalesce(p_timezone,'Asia/Tehran'),coalesce(p_currency,'IRR')
+  )
+  returning * into b;
+
+  foreach m in array array[
+    'customers','appointments','catalog','staff','invoicing','payments','cashier',
+    'ledger','inventory','reports','online_booking','notifications'
+  ] loop
+    insert into public.business_modules(
+      business_id,module_id,state,enabled_at
+    ) values (
+      b.id,m,
+      case when m in ('invoicing','ledger','inventory') then 'disabled' else 'enabled' end,
+      case when m in ('invoicing','ledger','inventory') then null else now() end
+    );
+  end loop;
+
+  insert into public.business_payment_methods(business_id,method,title,enabled,is_default)
+  values
+    (b.id,'card_terminal','کارتخوان',true,true),
+    (b.id,'cash','نقدی',true,false),
+    (b.id,'transfer','انتقال',true,false);
+
+  insert into public.business_branding(business_id,theme_key,radius_scale)
+  values (b.id,'elegant','comfortable');
+
+  insert into public.business_working_hours(business_id,weekday,enabled,open_time,close_time)
+  values
+    (b.id,0,true,'09:00','21:00'),(b.id,1,true,'09:00','21:00'),(b.id,2,true,'09:00','21:00'),
+    (b.id,3,true,'09:00','21:00'),(b.id,4,true,'09:00','21:00'),(b.id,5,true,'10:00','18:00'),
+    (b.id,6,false,null,null);
+
+  return b;
+exception
+  when unique_violation then
+    raise exception 'business_slug_exists';
+end;
+$$;
+
+revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
+grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
