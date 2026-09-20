@@ -292,100 +292,6 @@ create index if not exists businesses_category_status_idx on public.businesses(b
 create index if not exists businesses_owner_idx on public.businesses(owner_email);
 
 
-create or replace function public.create_business_workspace(
-  p_name text,
-  p_slug text,
-  p_business_type text,
-  p_mode text,
-  p_plan text,
-  p_owner_email text,
-  p_locale text default 'fa-IR',
-  p_timezone text default 'Asia/Tehran',
-  p_currency text default 'IRR'
-)
-returns public.businesses
-language plpgsql
-security invoker
-set search_path = public
-as $$
-declare
-  b public.businesses;
-  location_id uuid;
-  m text;
-begin
-  if auth.uid() is null then raise exception 'not_authenticated'; end if;
-  if nullif(trim(p_name), '') is null or nullif(trim(p_slug), '') is null then raise exception 'invalid_business_identity'; end if;
-
-  insert into public.businesses(
-    name,slug,business_type,mode,plan,status,owner_email,locale,timezone,currency
-  ) values (
-    trim(p_name),trim(p_slug),p_business_type,p_mode,coalesce(nullif(trim(p_plan),''),'Starter'),
-    'Trial',nullif(trim(p_owner_email),''),coalesce(p_locale,'fa-IR'),coalesce(p_timezone,'Asia/Tehran'),coalesce(p_currency,'IRR')
-  )
-  returning * into b;
-
-  insert into public.business_memberships(business_id,user_id,role_key,status,joined_at)
-  values (b.id,auth.uid(),'business_owner','active',now());
-
-  insert into public.business_locations(
-    business_id,name,code,timezone,locale,currency,active,is_default
-  ) values (
-    b.id,'شعبه اصلی','MAIN',b.timezone,b.locale,b.currency,true,true
-  ) returning id into location_id;
-
-  update public.businesses set default_location_id=location_id where id=b.id;
-
-  foreach m in array ARRAY[
-    'customers','appointments','catalog','staff','invoicing','payments',
-    'cashier','ledger','inventory','reports','online_booking','notifications'
-  ] loop
-    insert into public.business_modules(business_id,module_id,state,enabled_at)
-    values (
-      b.id,m,
-      case
-        when m = 'inventory' then 'disabled'
-        else 'enabled'
-      end,
-      case when m = 'inventory' then null else now() end
-    );
-  end loop;
-
-  insert into public.business_payment_methods(business_id,method,title,enabled,is_default)
-  values
-    (b.id,'card_terminal','کارتخوان',true,true),
-    (b.id,'cash','نقدی',true,false),
-    (b.id,'transfer','انتقال',true,false);
-
-  insert into public.business_financial_settings(
-    business_id,invoice_enabled,invoice_optional,auto_issue_invoice,
-    allow_receipt_without_invoice,allow_partial_payment,allow_mixed_payment,
-    default_payment_method,tax_enabled,tax_rate,price_includes_tax
-  ) values (
-    b.id,true,true,false,true,true,true,'card_terminal',false,0,true
-  );
-
-  insert into public.business_document_sequences(business_id,document_type,prefix,next_number)
-  values (b.id,'invoice','',1);
-
-  insert into public.business_branding(business_id,theme_key,radius_scale)
-  values (b.id,'elegant','comfortable');
-
-  insert into public.business_working_hours(business_id,weekday,enabled,open_time,close_time)
-  values
-    (b.id,0,true,'09:00','21:00'),(b.id,1,true,'09:00','21:00'),(b.id,2,true,'09:00','21:00'),
-    (b.id,3,true,'09:00','21:00'),(b.id,4,true,'09:00','21:00'),(b.id,5,true,'10:00','18:00'),
-    (b.id,6,false,null,null);
-
-  return b;
-exception
-  when unique_violation then raise exception 'business_slug_exists';
-end;
-$$;
-
-revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
-grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
-
-
 -- EASY Business scale foundations: locations, financial policies and document numbering.
 create table if not exists public.business_locations (
  id uuid primary key default gen_random_uuid(),
@@ -626,3 +532,97 @@ $$;
 
 revoke all on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) from public;
 grant execute on function public.record_business_invoice_payment(uuid,uuid,jsonb,text) to authenticated;
+
+
+create or replace function public.create_business_workspace(
+  p_name text,
+  p_slug text,
+  p_business_type text,
+  p_mode text,
+  p_plan text,
+  p_owner_email text,
+  p_locale text default 'fa-IR',
+  p_timezone text default 'Asia/Tehran',
+  p_currency text default 'IRR'
+)
+returns public.businesses
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  b public.businesses;
+  location_id uuid;
+  m text;
+begin
+  if auth.uid() is null then raise exception 'not_authenticated'; end if;
+  if nullif(trim(p_name), '') is null or nullif(trim(p_slug), '') is null then raise exception 'invalid_business_identity'; end if;
+
+  insert into public.businesses(
+    name,slug,business_type,mode,plan,status,owner_email,locale,timezone,currency
+  ) values (
+    trim(p_name),trim(p_slug),p_business_type,p_mode,coalesce(nullif(trim(p_plan),''),'Starter'),
+    'Trial',nullif(trim(p_owner_email),''),coalesce(p_locale,'fa-IR'),coalesce(p_timezone,'Asia/Tehran'),coalesce(p_currency,'IRR')
+  )
+  returning * into b;
+
+  insert into public.business_memberships(business_id,user_id,role_key,status,joined_at)
+  values (b.id,auth.uid(),'business_owner','active',now());
+
+  insert into public.business_locations(
+    business_id,name,code,timezone,locale,currency,active,is_default
+  ) values (
+    b.id,'شعبه اصلی','MAIN',b.timezone,b.locale,b.currency,true,true
+  ) returning id into location_id;
+
+  update public.businesses set default_location_id=location_id where id=b.id;
+
+  foreach m in array ARRAY[
+    'customers','appointments','catalog','staff','invoicing','payments',
+    'cashier','ledger','inventory','reports','online_booking','notifications'
+  ] loop
+    insert into public.business_modules(business_id,module_id,state,enabled_at)
+    values (
+      b.id,m,
+      case
+        when m = 'inventory' then 'disabled'
+        else 'enabled'
+      end,
+      case when m = 'inventory' then null else now() end
+    );
+  end loop;
+
+  insert into public.business_payment_methods(business_id,method,title,enabled,is_default)
+  values
+    (b.id,'card_terminal','کارتخوان',true,true),
+    (b.id,'cash','نقدی',true,false),
+    (b.id,'transfer','انتقال',true,false);
+
+  insert into public.business_financial_settings(
+    business_id,invoice_enabled,invoice_optional,auto_issue_invoice,
+    allow_receipt_without_invoice,allow_partial_payment,allow_mixed_payment,
+    default_payment_method,tax_enabled,tax_rate,price_includes_tax
+  ) values (
+    b.id,true,true,false,true,true,true,'card_terminal',false,0,true
+  );
+
+  insert into public.business_document_sequences(business_id,document_type,prefix,next_number)
+  values (b.id,'invoice','',1);
+
+  insert into public.business_branding(business_id,theme_key,radius_scale)
+  values (b.id,'elegant','comfortable');
+
+  insert into public.business_working_hours(business_id,weekday,enabled,open_time,close_time)
+  values
+    (b.id,0,true,'09:00','21:00'),(b.id,1,true,'09:00','21:00'),(b.id,2,true,'09:00','21:00'),
+    (b.id,3,true,'09:00','21:00'),(b.id,4,true,'09:00','21:00'),(b.id,5,true,'10:00','18:00'),
+    (b.id,6,false,null,null);
+
+  return b;
+exception
+  when unique_violation then raise exception 'business_slug_exists';
+end;
+$$;
+
+revoke all on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) from public;
+grant execute on function public.create_business_workspace(text,text,text,text,text,text,text,text,text) to authenticated;
