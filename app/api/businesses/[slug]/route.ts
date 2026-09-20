@@ -36,8 +36,11 @@ export async function PATCH(request: Request, { params }: { params: { slug: stri
   if (findError || !business) return NextResponse.json({ ok: false, error: "business_not_found" }, { status: 404 });
 
   const profile = body?.profile && typeof body.profile === "object" ? body.profile : {};
+  if (("status" in profile || "plan" in profile) && !(await supabase.rpc("is_platform_admin")).data) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
   const allowedProfile: Record<string, unknown> = {};
-  for (const key of ["name","legal_name","email","website","phone","address","postal_code","locale","timezone","currency","logo_url","online_booking","settings"]) {
+  for (const key of ["name","legal_name","email","website","phone","address","postal_code","locale","timezone","currency","logo_url","online_booking","settings","status","plan"]) {
     if (key in profile) allowedProfile[key] = profile[key];
   }
 
