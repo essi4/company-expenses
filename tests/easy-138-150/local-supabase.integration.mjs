@@ -38,6 +38,8 @@ const { data: created, error: createError } = await admin.auth.admin.createUser(
   email_confirm: true,
 });
 if (createError || !created.user) throw new Error(`Auth user creation failed: ${createError?.message ?? "unknown"}`);
+const { error: adminGrantError } = await admin.from("platform_admin_users").insert({ user_id: created.user.id, enabled: true });
+if (adminGrantError) throw new Error(`Platform admin bootstrap failed: ${adminGrantError.message}`);
 
 const cookies = new Map();
 const ssr = createServerClient(baseUrl, publishableKey, {
@@ -62,12 +64,23 @@ const authenticated = await fetch(`${appUrl}/api/control-center`, {
   headers: { Cookie: cookieHeader },
 });
 await expectStatus("Authenticated Control Center API", authenticated, 200);
+
+const businessResponse = await fetch(`${appUrl}/api/businesses`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Cookie: cookieHeader },
+  body: JSON.stringify({ name: "CI Tenant Business", slug: `ci-tenant-${Date.now()}`, business_type: "Services", mode: "General", plan: "Starter", owner_email: email }),
+});
+await expectStatus("Platform Admin Business create", businessResponse, 201);
+const businessPayload = await businessResponse.json();
+if (!businessPayload?.ok || !businessPayload?.data?.id) throw new Error("Business creation RPC did not return a Business");
 const payload = await authenticated.json();
 if (payload?.ok !== true) throw new Error("Authenticated Control Center API did not return ok=true");
 if (!Array.isArray(payload?.stages) || payload.stages.length !== 13) {
   throw new Error(`Expected 13 executed stages, got ${payload?.stages?.length ?? "invalid"}`);
 }
 
+if (businessPayload?.data?.id) await admin.from("businesses").delete().eq("id", businessPayload.data.id);
+await admin.from("platform_admin_users").delete().eq("user_id", created.user.id);
 await admin.from("marketplace_apps").delete().eq("id", seeded.id);
 await admin.auth.admin.deleteUser(created.user.id);
 
