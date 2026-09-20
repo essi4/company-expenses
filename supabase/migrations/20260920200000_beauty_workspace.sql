@@ -324,6 +324,9 @@ begin
   )
   returning * into b;
 
+  insert into public.business_memberships(business_id,user_id,role_key,status,joined_at)
+  values (b.id,auth.uid(),'business_owner','active',now());
+
   insert into public.business_locations(
     business_id,name,code,timezone,locale,currency,active,is_default
   ) values (
