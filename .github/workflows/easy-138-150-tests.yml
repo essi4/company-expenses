@@ -70,3 +70,19 @@ jobs:
       - name: Stop isolated Supabase staging
         if: always()
         run: supabase stop || true
+
+  vercel-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Clean install dependencies
+        run: npm ci --force --no-audit --no-fund
+
+      - name: Build Next.js application
+        run: npm run build
