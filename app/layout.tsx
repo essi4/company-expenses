@@ -8,16 +8,16 @@ const geistMono = localFont({ src: "./fonts/GeistMonoVF.woff", variable: "--font
 
 export const metadata: Metadata = {
   title: {
-    default: "مدیریت مالی شرکت",
-    template: "%s | مدیریت مالی شرکت",
+    default: "EASY Business Platform",
+    template: "%s | EASY Business Platform",
   },
-  description: "سامانه حرفه‌ای مدیریت خرید، هزینه، فاکتورها، پرداخت‌ها و امور مالی شرکت",
+  description: "پلتفرم چندکسب‌وکاره EASY برای مدیریت Business، Customer، Automation، Communication، Intelligence و Control Center",
   manifest: "/manifest.webmanifest",
-  applicationName: "مدیریت مالی شرکت",
-  keywords: ["مدیریت مالی", "هزینه شرکت", "خرید", "فاکتور", "پرداخت", "حسابداری"],
+  applicationName: "EASY Business Platform",
+  keywords: ["EASY", "Business Platform", "Multi-Business", "Control Center", "Customer Portal", "Automation"],
   appleWebApp: {
     capable: true,
-    title: "مدیریت مالی شرکت",
+    title: "EASY Business Platform",
     statusBarStyle: "default",
   },
 };
