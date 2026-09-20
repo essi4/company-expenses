@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import BeautyWorkspace from "./beauty-workspace";
@@ -82,6 +82,31 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
   const [selected, setSelected] = useState<Business | null>(null);
   const [workspaceBusiness, setWorkspaceBusiness] = useState<Business | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", type: "Beauty" as Business["type"], mode: "Women", plan: "Starter" as Business["plan"], owner: "" });
+  const [dataSource, setDataSource] = useState<"database" | "demo">("database");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/businesses", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!active || !payload?.ok || !Array.isArray(payload.data)) return setDataSource("demo");
+        const mapped = payload.data.map((row: any): Business => ({
+          id: row.id,
+          name: row.name,
+          slug: row.slug,
+          type: row.business_type,
+          mode: row.mode,
+          plan: row.plan,
+          status: row.status,
+          owner: row.owner_email ?? "—",
+          updated: row.updated_at ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(new Date(row.updated_at)) : "—",
+        }));
+        setBusinesses(mapped);
+        setDataSource("database");
+      })
+      .catch(() => active && setDataSource("demo"));
+    return () => { active = false; };
+  }, []);
 
   const current = navSections.find((item) => item.id === section) ?? navSections[1];
 
