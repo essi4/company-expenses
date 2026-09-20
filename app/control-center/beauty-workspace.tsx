@@ -120,6 +120,15 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
     notify(status === "انجام شد" ? "نوبت تکمیل شد." : "نوبت لغو شد.");
   }
 
+  async function saveSettings() {
+    if (!resolvedBusinessId) return;
+    const { error } = await supabase.from("businesses").update({
+      name: settings.name.trim(), phone: settings.phone.trim(), address: settings.address.trim(), online_booking: settings.booking, updated_at: new Date().toISOString(),
+    }).eq("id", resolvedBusinessId);
+    if (error) return notify("ذخیره تنظیمات انجام نشد.");
+    notify("تنظیمات ذخیره شد.");
+  }
+
   async function addPayment() {
     const amount = Number(paymentForm.amount);
     if (!paymentForm.customer || !paymentForm.service || !amount) return;
@@ -304,7 +313,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
               <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-400">تلفن</span><input value={settings.phone} onChange={(e) => setSettings({ ...settings, phone: e.target.value })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
               <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-400">آدرس</span><input value={settings.address} onChange={(e) => setSettings({ ...settings, address: e.target.value })} className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" /></label>
               <label className="flex items-center gap-3 rounded-2xl border border-white/10 p-4 text-sm"><input type="checkbox" checked={settings.booking} onChange={(e) => setSettings({ ...settings, booking: e.target.checked })} /> دریافت آنلاین نوبت فعال باشد</label>
-              <button type="button" onClick={() => notify("تنظیمات ذخیره شد.")} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">ذخیره تنظیمات</button>
+              <button type="button" onClick={saveSettings} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950">ذخیره تنظیمات</button>
             </div>
           )}
         </section>
