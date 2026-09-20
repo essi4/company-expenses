@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import BeautyWorkspace from "./beauty-workspace";
 
 type Business = {
   id: string;
@@ -20,6 +21,7 @@ const seedBusinesses: Business[] = [
   { id: "BUS-001", name: "EASY Demo Beauty", slug: "easy-demo-beauty", type: "Beauty", mode: "Women", plan: "Professional", status: "Active", owner: "demo@easy.local", updated: "امروز" },
   { id: "BUS-002", name: "EASY Auto Center", slug: "easy-auto-center", type: "Automotive", mode: "Oil Change", plan: "Starter", status: "Trial", owner: "auto@easy.local", updated: "دیروز" },
   { id: "BUS-003", name: "EASY Clinic", slug: "easy-clinic", type: "Medical", mode: "Clinic", plan: "Enterprise", status: "Active", owner: "clinic@easy.local", updated: "۲ روز قبل" },
+  { id: "BUS-004", name: "پازل", slug: "puzzle-barber", type: "Beauty", mode: "Men", plan: "Professional", status: "Active", owner: "puzzle@easy.local", updated: "امروز" },
 ];
 
 const navSections = [
@@ -78,7 +80,6 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
   const [selected, setSelected] = useState<Business | null>(null);
   const [workspaceBusiness, setWorkspaceBusiness] = useState<Business | null>(null);
   const [createForm, setCreateForm] = useState({ name: "", type: "Beauty" as Business["type"], mode: "Women", plan: "Starter" as Business["plan"], owner: "" });
-  const [workspaceTab, setWorkspaceTab] = useState("داشبورد");
 
   const current = navSections.find((item) => item.id === section) ?? navSections[1];
 
@@ -371,45 +372,11 @@ export default function ControlCenterClient({ userEmail }: { userEmail: string }
       {workspaceBusiness && (
         <div className="fixed inset-0 z-[60] bg-black/80 p-3 sm:p-5" onClick={() => setWorkspaceBusiness(null)}>
           <div className="mx-auto h-full max-w-6xl overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="border-b border-white/10 p-5 sm:p-7">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <span className="text-xs font-black text-cyan-300">فضای کاری کسب‌وکار فعال</span>
-                  <h2 className="mt-2 text-2xl font-black">{workspaceBusiness.name}</h2>
-                  <p className="mt-1 text-sm text-slate-400">{workspaceBusiness.type === "Beauty" ? `آرایشگاه · ${modeLabel(workspaceBusiness)} · ${workspaceBusiness.plan}` : `${modeLabel(workspaceBusiness)} · ${workspaceBusiness.plan}`}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-300">● فعال</span>
-                  <button onClick={() => setWorkspaceBusiness(null)} className="rounded-xl border border-white/10 px-3 py-2 text-slate-400">×</button>
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[240px_1fr]">
-              <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="rounded-2xl bg-white p-4 text-slate-950">
-                  <b className="block text-base">{workspaceBusiness.name}</b>
-                  <span className="mt-1 block text-[11px] text-slate-500">{workspaceBusiness.type === "Beauty" ? `آرایشگاه ${modeLabel(workspaceBusiness)}` : modeLabel(workspaceBusiness)}</span>
-                </div>
-                <nav className="mt-4 space-y-2">
-                  {["داشبورد", "نوبت‌ها", "مشتریان", "خدمات", "کارکنان", "فروش و پرداخت", "گزارش‌ها", "تنظیمات"].map((item) => <button key={item} type="button" onClick={() => setWorkspaceTab(item)} className={`w-full rounded-2xl px-4 py-3 text-right text-xs font-bold ${workspaceTab === item ? "bg-cyan-400/10 text-cyan-200" : "text-slate-400 hover:bg-white/[0.04]"}`}>{item}</button>)}
-                </nav>
-              </aside>
-              <section className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {[["امروز", "۱۲", "نوبت‌ها"], ["مشتریان", "۱۸۴", "فعال"], ["خدمات", "۲۴", "تعریف‌شده"], ["فروش امروز", "۳۴٫۸", "میلیون"]].map(([value, number, label]) => <div key={value} className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"><span className="text-[10px] text-slate-500">{value}</span><b className="mt-2 block text-2xl font-black">{number}</b><span className="mt-1 block text-xs text-slate-400">{label}</span></div>)}
-                </div>
-                <div className="mb-5 rounded-3xl border border-cyan-400/15 bg-cyan-400/[0.05] p-5"><span className="text-[10px] font-black text-cyan-300">بخش فعال</span><h3 className="mt-1 text-lg font-black">{workspaceTab}</h3><div className="mt-4 grid gap-3 sm:grid-cols-2"><label><span className="mb-1.5 block text-xs font-bold text-slate-400">جست‌وجو / نام</span><input className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm outline-none" placeholder="جست‌وجو در بخش فعال" /></label><label><span className="mb-1.5 block text-xs font-bold text-slate-400">وضعیت</span><select defaultValue="active" className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm"><option value="active">فعال</option><option value="pending">در انتظار</option><option value="archived">بایگانی</option></select></label></div></div><div className="grid gap-4 lg:grid-cols-2">
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-                    <h3 className="font-black">عملیات امروز</h3>
-                    <div className="mt-4 space-y-2">{["نوبت ساعت ۱۷:۰۰ · اصلاح مو", "نوبت ساعت ۱۸:۳۰ · اصلاح و ریش", "رزرو جدید · مشتری جدید"].map((item) => <div key={item} className="rounded-2xl border border-white/10 px-4 py-3 text-xs text-slate-300">{item}</div>)}</div>
-                  </div>
-                  <div className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-                    <h3 className="font-black">ماژول‌های فعال</h3>
-                    <div className="mt-4 grid grid-cols-2 gap-2">{["نوبت‌دهی", "مشتریان", "خدمات", "کارکنان", "پرداخت", "اعلان‌ها"].map((item) => <div key={item} className="rounded-2xl bg-white/[0.03] px-3 py-3 text-xs font-bold text-slate-300">✓ {item}</div>)}</div>
-                  </div>
-                </div>
-              </section>
-            </div>
+            <BeautyWorkspace
+              name={workspaceBusiness.name}
+              mode={modeLabel(workspaceBusiness)}
+              plan={workspaceBusiness.plan}
+            />
           </div>
         </div>
       )}
