@@ -3,6 +3,21 @@
 @tailwind utilities;
 
 :root {
+  --easy-radius-sm: .65rem;
+  --easy-radius-md: .9rem;
+  --easy-radius-lg: 1.25rem;
+  --easy-radius-xl: 1.75rem;
+  --easy-space-1: .25rem;
+  --easy-space-2: .5rem;
+  --easy-space-3: .75rem;
+  --easy-space-4: 1rem;
+  --easy-space-5: 1.25rem;
+  --easy-space-6: 1.5rem;
+  --easy-shadow-card: 0 10px 30px rgba(15, 23, 42, .06);
+  --easy-focus: 59, 130, 246;
+  --easy-success: 16, 185, 129;
+  --easy-danger: 244, 63, 94;
+  --easy-warning: 245, 158, 11;
   --background: #f5f7fb;
   --foreground: #0f172a;
   --surface: #ffffff;
@@ -19,9 +34,11 @@ body {
   background:
     radial-gradient(circle at 100% 0%, rgba(15, 23, 42, .035), transparent 30rem),
     var(--background);
-  font-family: var(--font-geist-sans), Tahoma, Arial, sans-serif;
+  font-family: var(--font-vazirmatn), Tahoma, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1;
+  font-variant-numeric: tabular-nums;
 }
 
 button, input, select, textarea { font: inherit; }
@@ -75,4 +92,22 @@ img { max-width: 100%; }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
+}
+
+
+.font-persian { font-family: var(--font-vazirmatn), Tahoma, Arial, sans-serif; }
+
+
+@layer components {
+  .easy-label { display:block; margin-bottom:.4rem; font-size:.72rem; font-weight:800; color:#475569; }
+  .easy-label[data-required="true"]::after { content:" *"; color:rgb(var(--easy-danger)); }
+  .easy-field { width:100%; min-height:2.9rem; border:1px solid var(--border); border-radius:var(--easy-radius-md); background:var(--surface); padding:.7rem .9rem; color:var(--foreground); }
+  .easy-field[dir="ltr"] { text-align:left; }
+  .easy-field[aria-invalid="true"] { border-color:rgba(var(--easy-danger),.6); box-shadow:0 0 0 3px rgba(var(--easy-danger),.08); }
+  .easy-help { margin-top:.35rem; font-size:.68rem; line-height:1.7; color:#94a3b8; }
+  .easy-error { margin-top:.35rem; font-size:.68rem; line-height:1.7; color:rgb(var(--easy-danger)); }
+  .easy-card { border:1px solid var(--border); border-radius:var(--easy-radius-xl); background:var(--surface); box-shadow:var(--easy-shadow-card); }
+  .easy-kpi { border:1px solid var(--border); border-radius:var(--easy-radius-lg); background:var(--surface); padding:1rem; }
+  .easy-number { font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+  .easy-scroll-x { overflow-x:auto; overscroll-behavior-x:contain; }
 }

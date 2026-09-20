@@ -1,0 +1,2 @@
+import {describe,it,expect} from "vitest";import {readFileSync} from "node:fs";
+describe("Control Center API contract",()=>{it("uses Supabase server auth",()=>{const s=readFileSync("app/api/control-center/route.ts","utf8");expect(s).toContain("supabase.auth.getUser()");expect(s).toContain("status:401");});it("has health route",()=>expect(readFileSync("app/api/health/route.ts","utf8")).toContain("service:\"easy-business-platform\""));});

@@ -6,10 +6,12 @@ export async function updateSession(request: NextRequest) {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const pathname = request.nextUrl.pathname;
     const isPublic =
+      pathname === "/" ||
       pathname.startsWith("/login") ||
       pathname.startsWith("/auth/") ||
       pathname.startsWith("/_next/") ||
-      pathname === "/favicon.ico";
+      pathname === "/favicon.ico" ||
+      pathname === "/api/health";
 
     if (isPublic) return NextResponse.next();
 
@@ -40,10 +42,12 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const pathname = request.nextUrl.pathname;
   const isPublic =
+    pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/_next/") ||
-    pathname === "/favicon.ico";
+    pathname === "/favicon.ico" ||
+    pathname === "/api/health";
 
   if (!data?.claims && !isPublic) {
     const url = request.nextUrl.clone();

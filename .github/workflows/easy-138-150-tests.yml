@@ -1,0 +1,88 @@
+name: EASY 138-150 Tests
+on:
+  push:
+    branches: ["feature/easy-138-150-implementation"]
+  pull_request:
+    branches: ["master"]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The legacy lockfile is currently out of sync with package.json;
+      # install resolves the existing dependency graph on the CI runner.
+      - run: npm install --no-audit --no-fund
+      - run: npm install --no-save --no-audit --no-fund vitest@3.2.4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.117.0
+
+      - name: Start isolated Supabase staging
+        run: supabase start
+
+      - name: Reset and apply all migrations
+        run: supabase db reset --local
+
+      - name: Export isolated Supabase credentials
+        shell: bash
+        run: |
+          eval "$(supabase status -o env)"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$ANON_KEY" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+          echo "EASY_APP_URL=http://127.0.0.1:3000" >> "$GITHUB_ENV"
+
+      - name: Run static and pipeline tests
+        run: npx vitest run tests/easy-138-150
+
+      - name: Build Next.js application
+        run: npm run build
+
+      - name: Start Next.js staging server
+        shell: bash
+        run: |
+          nohup npm start -- -p 3000 > /tmp/easy-next.log 2>&1 &
+          echo $! > /tmp/easy-next.pid
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/api/health > /tmp/easy-health.json; then
+              cat /tmp/easy-health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/easy-next.log
+          exit 1
+
+      - name: Run real Supabase Migration + RLS + Auth + API integration
+        run: node tests/easy-138-150/local-supabase.integration.mjs
+
+      - name: Show Next.js logs on failure
+        if: failure()
+        run: cat /tmp/easy-next.log || true
+
+      - name: Stop isolated Supabase staging
+        if: always()
+        run: supabase stop || true
+
+  vercel-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Clean install dependencies
+        run: npm ci --force --no-audit --no-fund
+
+      - name: Build Next.js application
+        run: npm run build

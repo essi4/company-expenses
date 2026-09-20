@@ -1,0 +1,10 @@
+export type PlatformRequest={requestId:string;actorId?:string;tenantId?:string;businessId?:string;idempotencyKey?:string;correlationId?:string};
+export type PlatformResult<T=unknown>={ok:boolean;correlationId:string;data?:T;error?:{code:string;message:string}};
+export type StageExecution={stage:string;status:"READY"|"EXECUTED"|"SKIPPED"|"FAILED";dependencies:string[]};
+export type StageHandler=(request:PlatformRequest)=>Promise<PlatformResult>;
+export type BusinessCategory = "Beauty" | "Automotive" | "Medical" | "Retail" | "Services" | "Hospitality" | "Education" | "Fitness" | "Professional" | "Other";
+export type ModuleState = "enabled" | "disabled" | "locked";
+export type BusinessModule = { id:string; state:ModuleState; config?:Record<string,unknown> };
+export type BusinessWorkspace = { businessId:string; category:BusinessCategory; mode:string; modules:BusinessModule[] };
+export type PaymentMethod = "card_terminal" | "cash" | "transfer" | "mixed";
+export type InvoicePolicy = { enabled:boolean; optional:boolean; autoIssue:boolean; allowReceiptWithoutInvoice:boolean };
