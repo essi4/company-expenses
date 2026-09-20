@@ -143,9 +143,9 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
     if (!paymentForm.customer || !paymentForm.service || !amount) return;
     if (!resolvedBusinessId) return;
     const customer = customers.find((x) => x.name === paymentForm.customer); const service = services.find((x) => x.name === paymentForm.service); if (!customer || !service) return notify("اطلاعات پرداخت ناقص است.");
-    const { data, error } = await supabase.from("business_payments").insert({ business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id, amount, method: paymentForm.method === "کارت" ? "card" : "cash" }).select("id,amount,method").single();
+    const { data, error } = await supabase.from("business_payments").insert({ business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id, amount, method: paymentForm.method === "کارت" ? "card_terminal" : "cash" }).select("id,amount,method").single();
     if (error || !data) return notify("ثبت پرداخت انجام نشد.");
-    const next = { id: data.id, customer: customer.name, service: service.name, amount: Number(data.amount), method: data.method === "card" ? "کارت" as const : "نقدی" as const };
+    const next = { id: data.id, customer: customer.name, service: service.name, amount: Number(data.amount), method: data.method === "card_terminal" ? "کارت" as const : "نقدی" as const };
     setPayments((items) => [...items, next]);
     notify("پرداخت ثبت شد.");
   }
