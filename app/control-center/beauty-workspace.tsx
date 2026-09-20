@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 type Customer = { id: string; name: string; phone: string };
 type Service = { id: string; name: string; price: number; duration: number };
 type Staff = { id: string; name: string; role: string };
-type Appointment = { id: string; date: string; time: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
+type Appointment = { id: string; date: string; time: string; startsAt: string; customer: string; service: string; staff: string; status: "رزرو" | "انجام شد" | "لغو شد" };
 type Payment = { id: string; customer: string; service: string; amount: number; method: "نقدی" | "کارت" };\ntype Invoice = { id: string; number: string; customer: string; subtotal: number; discount: number; total: number; status: string; paid: boolean; paidAmount: number };
 type InvoiceDraftItem = { serviceId: string; description: string; quantity: number; unitPrice: number };
 
@@ -29,7 +29,7 @@ const initialStaff: Staff[] = [
 
 const initialAppointments: Appointment[] = [
   { id: "demo-appointment-1", date: dateKey(), time: "۱۷:۰۰", customer: "امیر رضایی", service: "اصلاح مو", staff: "اسماعیل", status: "رزرو" },
-  { id: "demo-appointment-2", date: dateKey(), time: "۱۸:۳۰", customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
+  { id: "demo-appointment-2", date: dateKey(), time: "۱۸:۳۰", startsAt: `${dateKey()}T18:30:00`, customer: "محمد احمدی", service: "اصلاح و ریش", staff: "رضا", status: "رزرو" },
 ];
 
 const initialPayments: Payment[] = [
@@ -38,7 +38,7 @@ const initialPayments: Payment[] = [
 ];
 
 const toman = new Intl.NumberFormat("fa-IR");
-const dateKey = (date = new Date()) => {
+function dateKey(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -115,7 +115,7 @@ export default function BeautyWorkspace({ name, mode, plan, businessSlug }: { na
     const today = new Date(`${appointmentForm.date}T12:00:00`); const [hh, mm] = appointmentForm.time.split(":").map(Number); if (Number.isFinite(hh) && Number.isFinite(mm)) today.setHours(hh, mm, 0, 0);
     const { data, error } = await supabase.from("business_appointments").insert({ business_id: resolvedBusinessId, customer_id: customer.id, service_id: service.id, staff_id: worker.id, starts_at: today.toISOString(), status: "reserved" }).select("id,starts_at,status").single();
     if (error || !data) return notify("ثبت نوبت انجام نشد.");
-    const next = { id: data.id, date: dateKey(new Date(data.starts_at)), time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.starts_at)), customer: customer.name, service: service.name, staff: worker.name, status: "رزرو" as const };
+    const next = { id: data.id, date: dateKey(new Date(data.starts_at)), time: new Intl.DateTimeFormat("fa-IR", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.starts_at)), startsAt: data.starts_at, customer: customer.name, service: service.name, staff: worker.name, status: "رزرو" as const };
     setAppointments((items) => [...items, next]);
     notify("نوبت ثبت شد.");
   }
