@@ -1,0 +1,19 @@
+name: EASY 138-150 Tests
+on:
+  push:
+    branches: ["feature/easy-138-150-implementation"]
+  pull_request:
+    branches: ["master"]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save vitest@3.2.4
+      - run: npx vitest run tests/easy-138-150
+      - run: npm run build
