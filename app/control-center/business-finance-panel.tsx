@@ -89,65 +89,62 @@ export default function BusinessFinancePanel({
     const service = services.find((x) => x.name === quick.service);
     const amount = Number(quick.amount);
     if (!customer || !service || amount <= 0) return notify("مبلغ و اطلاعات پرداخت را کامل کنید.");
-    const { error } = await supabase.from("business_payments").insert({
-      business_id: businessId,
-      customer_id: customer.id,
-      service_id: service.id,
-      amount,
-      method: quick.method,
-      status: "paid",
+
+    const idempotencyKey = `quick:${businessId}:${customer.id}:${service.id}:${amount}:${quick.method}`;
+    const { data, error } = await supabase.rpc("record_business_quick_payment", {
+      p_business_id: businessId,
+      p_customer_id: customer.id,
+      p_service_id: service.id,
+      p_appointment_id: null,
+      p_location_id: null,
+      p_amount: Math.round(amount),
+      p_method: quick.method,
+      p_currency: "IRR",
+      p_reference: null,
+      p_idempotency_key: idempotencyKey,
     });
-    if (error) return notify("پرداخت ثبت نشد.");
-    notify("پرداخت ثبت شد.");
+    if (error || !data?.[0]) return notify("پرداخت ثبت نشد.");
+    notify(`پرداخت ثبت شد · رسید ${data[0].receipt_number}`);
   }
 
   async function createInvoice() {
     const customer = customers.find((x) => x.name === invoiceCustomer);
     if (!customer || invoiceItems.length === 0 || total <= 0) return notify("مشتری و حداقل یک خدمت را انتخاب کنید.");
-    const { data: generatedNumber, error: numberError } = await supabase.rpc("next_business_document_number", {
-      p_business_id: businessId,
-      p_document_type: "invoice",
-    });
-    if (numberError || !generatedNumber) return notify("شماره فاکتور ایجاد نشد.");
 
-    const invoiceNumber = generatedNumber as string;
-    const { data: invoice, error } = await supabase.from("business_invoices").insert({
-      business_id: businessId,
-      customer_id: customer.id,
-      invoice_number: invoiceNumber,
-      subtotal,
-      discount_amount: safeDiscount,
-      total_amount: total,
-      status: "issued",
-    }).select("id").single();
-
-    if (error || !invoice) return notify("صدور فاکتور انجام نشد.");
-
-    const { error: itemError } = await supabase.from("business_invoice_items").insert(invoiceItems.map((item) => ({
-      invoice_id: invoice.id,
+    const items = invoiceItems.map((item) => ({
       service_id: item.serviceId,
       description: item.description,
       quantity: item.quantity,
       unit_price: item.unitPrice,
-      discount_amount: 0,
-      line_total: item.quantity * item.unitPrice,
-    })));
-    if (itemError) return notify("آیتم‌های فاکتور ثبت نشد.");
+    }));
 
+    const { data, error } = await supabase.rpc("create_business_invoice", {
+      p_business_id: businessId,
+      p_customer_id: customer.id,
+      p_location_id: null,
+      p_appointment_id: null,
+      p_items: items,
+      p_discount: Math.round(safeDiscount),
+      p_notes: null,
+    });
+
+    if (error || !data?.[0]) return notify("صدور فاکتور انجام نشد.");
+
+    const result = data[0];
     const next: Invoice = {
-      id: invoice.id,
-      number: invoiceNumber,
+      id: result.invoice_id,
+      number: result.invoice_number,
       customer: customer.name,
-      subtotal,
-      discount: safeDiscount,
-      total,
+      subtotal: Number(result.subtotal),
+      discount: Number(result.discount_amount),
+      total: Number(result.total_amount),
       status: "صادر شده",
       paidAmount: 0,
     };
     setInvoices((items) => [next, ...items]);
     setInvoiceItems([]);
     setDiscount(0);
-    notify(`فاکتور ${invoiceNumber} صادر شد.`);
+    notify(`فاکتور ${result.invoice_number} صادر شد.`);
   }
 
   async function payInvoice(invoice: Invoice, requestedAmount: number) {
