@@ -8,16 +8,16 @@ const geistMono = localFont({ src: "./fonts/GeistMonoVF.woff", variable: "--font
 
 export const metadata: Metadata = {
   title: {
-    default: "مدیریت مالی شرکت",
-    template: "%s | مدیریت مالی شرکت",
+    default: "EASY Business Platform",
+    template: "%s | EASY Business Platform",
   },
-  description: "سامانه حرفه‌ای مدیریت خرید، هزینه، فاکتورها، پرداخت‌ها و امور مالی شرکت",
+  description: "پلتفرم چندکسب‌وکاره EASY برای مدیریت کسب‌وکار، مشتری، عملیات، اشتراک و اتوماسیون",
   manifest: "/manifest.webmanifest",
-  applicationName: "مدیریت مالی شرکت",
-  keywords: ["مدیریت مالی", "هزینه شرکت", "خرید", "فاکتور", "پرداخت", "حسابداری"],
+  applicationName: "EASY Business Platform",
+  keywords: ["EASY", "Business Platform", "Control Center", "Multi-Business SaaS"],
   appleWebApp: {
     capable: true,
-    title: "مدیریت مالی شرکت",
+    title: "EASY Business Platform",
     statusBarStyle: "default",
   },
 };
@@ -26,7 +26,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0f172a",
+  themeColor: "#020617",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
