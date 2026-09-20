@@ -73,6 +73,32 @@ const businessResponse = await fetch(`${appUrl}/api/businesses`, {
 await expectStatus("Platform Admin Business create", businessResponse, 201);
 const businessPayload = await businessResponse.json();
 if (!businessPayload?.ok || !businessPayload?.data?.id) throw new Error("Business creation RPC did not return a Business");
+
+const otherEmail = `easy-ci-other-${Date.now()}@example.test`;
+const otherPassword = "EASY-CI-Other-Password-123!";
+const { data: otherCreated, error: otherCreateError } = await admin.auth.admin.createUser({
+  email: otherEmail,
+  password: otherPassword,
+  email_confirm: true,
+});
+if (otherCreateError || !otherCreated.user) throw new Error(`Second auth user creation failed: ${otherCreateError?.message ?? "unknown"}`);
+
+const otherCookies = new Map();
+const otherSsr = createServerClient(baseUrl, publishableKey, {
+  cookies: {
+    getAll: () => Array.from(otherCookies.entries()).map(([name, value]) => ({ name, value })),
+    setAll: (items) => items.forEach(({ name, value }) => otherCookies.set(name, value)),
+  },
+});
+const { data: otherSignedIn, error: otherSignInError } = await otherSsr.auth.signInWithPassword({ email: otherEmail, password: otherPassword });
+if (otherSignInError || !otherSignedIn.session) throw new Error(`Second auth sign-in failed: ${otherSignInError?.message ?? "no session"}`);
+
+const { data: isolatedRows, error: isolationError } = await otherSsr
+  .from("businesses")
+  .select("id")
+  .eq("id", businessPayload.data.id);
+if (isolationError) throw new Error(`Business isolation query failed: ${isolationError.message}`);
+if ((isolatedRows ?? []).length !== 0) throw new Error("RLS failure: unrelated authenticated user can read another Business");
 const payload = await authenticated.json();
 if (payload?.ok !== true) throw new Error("Authenticated Control Center API did not return ok=true");
 if (!Array.isArray(payload?.stages) || payload.stages.length !== 13) {
@@ -82,6 +108,7 @@ if (!Array.isArray(payload?.stages) || payload.stages.length !== 13) {
 if (businessPayload?.data?.id) await admin.from("businesses").delete().eq("id", businessPayload.data.id);
 await admin.from("platform_admin_users").delete().eq("user_id", created.user.id);
 await admin.from("marketplace_apps").delete().eq("id", seeded.id);
+await admin.auth.admin.deleteUser(otherCreated.user.id);
 await admin.auth.admin.deleteUser(created.user.id);
 
 console.log("REAL SUPABASE STAGING INTEGRATION: PASS");
