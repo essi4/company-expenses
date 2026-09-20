@@ -122,7 +122,7 @@ using (private.is_super_admin() or private.has_business_write(business_id));
 drop policy if exists businesses_auth on public.businesses;
 create policy businesses_select on public.businesses
 for select to authenticated
-using (private.has_business_access(id));
+using (private.has_business_access(id) or (select auth.uid()) = owner_user_id);
 
 create policy businesses_insert on public.businesses
 for insert to authenticated
