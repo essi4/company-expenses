@@ -1,0 +1,2 @@
+import {describe,it,expect} from "vitest"; import {createStagePipeline,STAGES} from "@/packages/easy-platform/stages/registry";
+describe("EASY 138-150 pipeline",()=>{it("contains every locked stage in order",()=>expect(createStagePipeline().order()).toEqual([...STAGES]));it("executes all stages",async()=>{const out=await createStagePipeline().execute({requestId:"test-138-150"});expect(out.result.ok).toBe(true);expect(out.trace).toHaveLength(13);expect(out.trace.every(x=>x.status==="EXECUTED")).toBe(true);});});
