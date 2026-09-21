@@ -1,10 +1,16 @@
 name: Cloudflare D1 Bootstrap
 
 on:
+  push:
+    branches:
+      - "feature/d1-migration-foundation"
   workflow_dispatch:
 
 jobs:
   bootstrap-d1:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          startsWith(github.event.head_commit.message, 'chore(d1): bootstrap remote') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -126,6 +132,11 @@ PY
 
           node scripts/assert-real-d1.mjs
 
+      - name: Remove bootstrap request marker
+        shell: bash
+        run: |
+          rm -f .github/d1-bootstrap.requested
+
       - name: Commit real D1 UUID
         shell: bash
         run: |
@@ -138,7 +149,7 @@ PY
             exit 0
           fi
 
-          git add wrangler.jsonc
+          git add wrangler.jsonc .github/d1-bootstrap.requested
           git commit -m "chore(d1): bind feature branch to real D1 database"
           git push origin HEAD:feature/d1-migration-foundation
 
