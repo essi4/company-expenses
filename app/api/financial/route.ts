@@ -159,6 +159,23 @@ export async function POST(request: Request) {
       );
     }
 
+    if (type === "purchase_items") {
+      const purchaseId = Number(body.purchase_id);
+      const purchase = await getDb()
+        .prepare(
+          "SELECT id FROM purchases WHERE id = ? AND company_id = ?"
+        )
+        .bind(purchaseId, context.companyId)
+        .first<{ id: number }>();
+
+      if (!purchase) {
+        return NextResponse.json(
+          { success: false, message: "خرید انتخاب‌شده متعلق به شرکت فعال نیست." },
+          { status: 400 }
+        );
+      }
+    }
+
     const columns = Object.keys(body);
     const values = Object.values(body);
     columns.push("company_id");
