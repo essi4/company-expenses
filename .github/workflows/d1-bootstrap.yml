@@ -18,6 +18,7 @@ jobs:
       DB_NAME: company-expenses
 
     steps:
+      - name: Check authorized bootstrap trigger
         id: authorize
         shell: bash
         env:
@@ -33,11 +34,15 @@ jobs:
             echo "No bootstrap request on this push; exiting safely."
           fi
 
+      - name: Checkout feature branch
+        if: steps.authorize.outputs.enabled == 'true'
         uses: actions/checkout@v4
         with:
           ref: feature/d1-migration-foundation
           fetch-depth: 1
 
+      - name: Validate Cloudflare secrets
+        if: steps.authorize.outputs.enabled == 'true'
         shell: bash
         run: |
           test -n "$CLOUDFLARE_ACCOUNT_ID" || {
@@ -49,6 +54,8 @@ jobs:
             exit 1
           }
 
+      - name: Inspect existing D1 database
+        if: steps.authorize.outputs.enabled == 'true'
         id: inspect
         shell: bash
         run: |
@@ -85,7 +92,8 @@ PY
             echo "No existing company-expenses D1 database found."
           fi
 
-        if: steps.inspect.outputs.exists == 'false'
+      - name: Create D1 database when missing
+        if: steps.authorize.outputs.enabled == 'true' && steps.inspect.outputs.exists == 'false'
         shell: bash
         run: |
           set -euo pipefail
@@ -110,6 +118,8 @@ if not uuid:
 print(uuid)
 PY
 
+      - name: Update Wrangler config with real UUID
+        if: steps.authorize.outputs.enabled == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -139,25 +149,31 @@ PY
 
           node scripts/assert-real-d1.mjs
 
+      - name: Remove bootstrap request marker
+        if: steps.authorize.outputs.enabled == 'true'
         shell: bash
         run: |
           rm -f .github/d1-bootstrap.requested
 
+      - name: Commit real D1 UUID
+        if: steps.authorize.outputs.enabled == 'true'
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- wrangler.jsonc; then
-            echo "Wrangler config already contains the real D1 UUID."
+          git add wrangler.jsonc .github/d1-bootstrap.requested
+
+          if git diff --cached --quiet; then
+            echo "No config change was necessary."
             exit 0
           fi
 
-          git add wrangler.jsonc .github/d1-bootstrap.requested
           git commit -m "chore(d1): bind feature branch to real D1 database"
           git push origin HEAD:feature/d1-migration-foundation
 
+      - name: Show non-secret result
+        if: steps.authorize.outputs.enabled == 'true'
         run: |
           echo "D1 bootstrap completed for database: $DB_NAME"
-          echo "The UUID was written to wrangler.jsonc on feature/d1-migration-foundation."
