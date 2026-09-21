@@ -1,0 +1,41 @@
+name: D1 Migration Check
+
+on:
+  push:
+    branches:
+      - "feature/d1-migration-foundation"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  d1-local-migration:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate Wrangler
+        run: npx --yes wrangler@4.135.0 --version
+
+      - name: List local migrations before apply
+        run: npx --yes wrangler@4.135.0 d1 migrations list company-expenses --local
+
+      - name: Apply local migrations
+        run: npx --yes wrangler@4.135.0 d1 migrations apply company-expenses --local
+
+      - name: Verify local schema
+        shell: bash
+        run: |
+          npx --yes wrangler@4.135.0 d1 execute company-expenses --local --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+          npx --yes wrangler@4.135.0 d1 execute company-expenses --local --command="PRAGMA table_info(purchases);"
+          npx --yes wrangler@4.135.0 d1 execute company-expenses --local --command="PRAGMA table_info(payments);"
+          npx --yes wrangler@4.135.0 d1 migrations list company-expenses --local
