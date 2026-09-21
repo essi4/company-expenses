@@ -1,0 +1,55 @@
+name: D1 Application Check
+
+on:
+  push:
+    branches:
+      - feature/d1-data-layer
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+concurrency:
+  group: d1-app-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies and synchronize lockfile
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: sync npm lockfile for Cloudflare runtime [skip ci]"
+            git push
+          fi
+
+      - name: Verify local D1 migration
+        run: npm run d1:verify:local
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Next.js production build
+        run: npm run build
+
+      - name: OpenNext Cloudflare build
+        run: npx opennextjs-cloudflare build
