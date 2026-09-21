@@ -59,3 +59,6 @@ jobs:
       - name: Verify imported row counts
         run: |
           npx wrangler@4.135.0 d1 execute company-expenses --remote --command="SELECT 'companies' AS table_name, COUNT(*) AS row_count FROM companies UNION ALL SELECT 'company_members', COUNT(*) FROM company_members UNION ALL SELECT 'purchases', COUNT(*) FROM purchases UNION ALL SELECT 'payments', COUNT(*) FROM payments UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers UNION ALL SELECT 'categories', COUNT(*) FROM categories UNION ALL SELECT 'accounts', COUNT(*) FROM accounts UNION ALL SELECT 'budgets', COUNT(*) FROM budgets UNION ALL SELECT 'checks', COUNT(*) FROM checks UNION ALL SELECT 'purchase_items', COUNT(*) FROM purchase_items;"
+
+      - name: Verify Supabase to D1 row-count parity
+        run: npm run d1:verify:parity
