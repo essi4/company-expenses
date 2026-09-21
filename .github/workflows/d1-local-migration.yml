@@ -22,23 +22,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Validate Wrangler config
-        run: npx wrangler@4.135.0 --version
+      - name: Validate Wrangler
+        run: npx --yes wrangler@4.135.0 --version
 
       - name: List local migrations before apply
-        run: npm run d1:migrations:list:local
+        run: npx --yes wrangler@4.135.0 d1 migrations list company-expenses --local
 
       - name: Apply local migrations
-        run: npm run d1:migrate:local
+        run: npx --yes wrangler@4.135.0 d1 migrations apply company-expenses --local
 
-      - name: Verify local tables
+      - name: Verify local schema
+        shell: bash
         run: |
-          npm run d1:tables:local
-          npx wrangler@4.135.0 d1 execute company-expenses --local --command="PRAGMA table_info(purchases);"
-          npx wrangler@4.135.0 d1 execute company-expenses --local --command="PRAGMA table_info(payments);"
-          npx wrangler@4.135.0 d1 migrations list company-expenses --local
+          npx --yes wrangler@4.135.0 d1 execute company-expenses --local --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+          npx --yes wrangler@4.135.0 d1 execute company-expenses --local --command="PRAGMA table_info(purchases);"
+          npx --yes wrangler@4.135.0 d1 execute company-expenses --local --command="PRAGMA table_info(payments);"
+          npx --yes wrangler@4.135.0 d1 migrations list company-expenses --local
