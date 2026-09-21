@@ -8,9 +8,7 @@ on:
 
 jobs:
   bootstrap-d1:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          startsWith(github.event.head_commit.message, 'chore(d1): bootstrap remote') }}
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(d1): bootstrap remote')
     runs-on: ubuntu-latest
     permissions:
       contents: write
