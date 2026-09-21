@@ -1,76 +1,93 @@
 # Company Expenses
 
-This is a [Next.js](https://nextjs.org) project.
+This is a [Next.js](https://nextjs.org) application deployed to Cloudflare Workers.
 
-## Getting Started
+## Runtime architecture
 
-Run the development server:
+- **Cloudflare Workers + OpenNext** run the Next.js application.
+- **Cloudflare D1** stores company and financial application data.
+- **Supabase Auth** remains responsible for authentication and session cookies.
+- **Supabase Storage** remains responsible for invoice images during the staged migration.
+- The application resolves the authenticated user's company membership through D1 and scopes financial queries by `company_id`.
+
+## Local development
+
+Run the normal Next.js development server:
 
 ```bash
+npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Cloudflare bindings are initialized for local development through OpenNext.
 
-## Cloudflare D1 migration workflow
-
-The repository now contains a Wrangler D1 configuration scaffold and a versioned baseline migration.
-
-### 1. Create the real D1 database
-
-Authenticate Wrangler with the Cloudflare account that owns the database, then create the database:
+To validate the D1 schema locally:
 
 ```bash
-npx wrangler@4.135.0 d1 create company-expenses
+npm run d1:verify:local
 ```
 
-Keep the returned `database_id`. Do not run a remote migration before replacing the placeholder in `wrangler.jsonc`.
+## Cloudflare Workers preview
 
-### 2. Enter the real UUID
+Build and preview the app in the Workers runtime:
 
-Replace:
-
-```text
-__REPLACE_WITH_REAL_D1_UUID__
+```bash
+npm run preview
 ```
 
-in `wrangler.jsonc` with the UUID returned by Cloudflare.
+The production deploy command is deliberately separate:
 
-The `preview_database_id` is intentionally a local-only identifier. It is not a production database ID.
+```bash
+npm run deploy
+```
 
-### 3. Test the migration locally
+Do not run the production deploy until the feature branch, tests, D1 remote verification, and merge are complete.
+
+## D1 migrations
+
+The migration history is:
+
+- `migrations/0001_init.sql` — original D1 baseline.
+- `migrations/0002_d1_company_finance.sql` — complete company/finance schema used by the application.
+
+List and apply locally:
 
 ```bash
 npm run d1:migrations:list:local
 npm run d1:migrate:local
-npm run d1:tables:local
 ```
 
-The baseline schema is in `migrations/0001_init.sql`. It is derived from the current SQLite schema in `lib/db.ts` and includes the current `purchases` and `payments` columns.
-
-### 4. Inspect remote state before applying
-
-After authentication and after the real UUID is present:
+Inspect remote state:
 
 ```bash
 npm run d1:migrations:list:remote
 ```
 
-Review the output before applying anything remotely.
+Remote migrations are gated in GitHub Actions. The repository must contain the real D1 UUID and the Cloudflare GitHub secrets before a remote action can proceed.
 
-### 5. Apply to the remote D1 database
+## One-time Supabase → D1 data import
 
-Only after local migration/testing is clean:
+The application code no longer reads business data from Supabase, so existing business records must be copied to D1 before the final production cutover.
+
+The importer is intentionally separate from schema migrations:
 
 ```bash
-npm run d1:migrate:remote
+CONFIRM_D1_DATA_IMPORT=IMPORT-D1-DATA \
+SUPABASE_URL=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+CLOUDFLARE_ACCOUNT_ID=... \
+CLOUDFLARE_API_TOKEN=... \
+npm run d1:import:supabase
 ```
 
-Do not add ad-hoc production SQL; future schema changes should be new numbered migrations.
+The importer upserts the current application tables and preserves their existing numeric IDs. It does not delete data from Supabase.
 
-## Safety rules
+For GitHub Actions, use the dedicated manual workflow and store the credentials as encrypted repository secrets. Never commit service-role keys or generated SQL containing production data.
 
-- `main` is not used for D1 changes until the feature branch has been tested.
-- Never commit Cloudflare API tokens or `.dev.vars` secrets.
-- Never replace the UUID placeholder with a guessed or unrelated database ID.
-- Remote migrations are an explicit final step after local verification.
+## Security and migration rules
+
+- Work on a feature branch; do not modify `master` directly.
+- Keep production D1 operations explicitly gated.
+- Never commit Cloudflare API tokens, Supabase service-role keys, `.dev.vars`, or exported production data.
+- Future schema changes must be additive numbered migrations.
+- Production deployment happens only once after the feature branch is verified and merged.
