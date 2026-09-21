@@ -12,9 +12,12 @@ on:
           - apply
         default: inspect
       confirm:
-        description: 'For apply, enter exactly APPLY-0001'
-        required: false
-        type: string
+        description: "Apply confirmation"
+        required: true
+        type: choice
+        options:
+          - APPLY-0001
+        default: APPLY-0001
 
 concurrency:
   group: d1-remote-migration
