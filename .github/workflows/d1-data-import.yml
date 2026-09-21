@@ -1,0 +1,61 @@
+name: D1 Data Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type IMPORT-D1-DATA to authorize the one-time data copy"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-data-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: inputs.confirm == 'IMPORT-D1-DATA'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CONFIRM_D1_DATA_IMPORT: IMPORT-D1-DATA
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/d1-data-layer
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          test -n "$SUPABASE_URL" || { echo "::error::Missing SUPABASE_URL"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::Missing SUPABASE_SERVICE_ROLE_KEY"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify D1 schema before import
+        run: npm run d1:migrations:list:remote
+
+      - name: Import Supabase business data into D1
+        run: npm run d1:import:supabase
+
+      - name: Verify imported row counts
+        run: |
+          npx wrangler@4.135.0 d1 execute company-expenses --remote --command="SELECT 'companies' AS table_name, COUNT(*) AS row_count FROM companies UNION ALL SELECT 'company_members', COUNT(*) FROM company_members UNION ALL SELECT 'purchases', COUNT(*) FROM purchases UNION ALL SELECT 'payments', COUNT(*) FROM payments UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers UNION ALL SELECT 'categories', COUNT(*) FROM categories UNION ALL SELECT 'accounts', COUNT(*) FROM accounts UNION ALL SELECT 'budgets', COUNT(*) FROM budgets UNION ALL SELECT 'checks', COUNT(*) FROM checks UNION ALL SELECT 'purchase_items', COUNT(*) FROM purchase_items;"
