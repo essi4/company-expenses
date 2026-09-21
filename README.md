@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Company Expenses
+
+This is a [Next.js](https://nextjs.org) project.
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Cloudflare D1 migration workflow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The repository now contains a Wrangler D1 configuration scaffold and a versioned baseline migration.
 
-## Learn More
+### 1. Create the real D1 database
 
-To learn more about Next.js, take a look at the following resources:
+Authenticate Wrangler with the Cloudflare account that owns the database, then create the database:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npx wrangler@4.135.0 d1 create company-expenses
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Keep the returned `database_id`. Do not run a remote migration before replacing the placeholder in `wrangler.jsonc`.
 
-## Deploy on Vercel
+### 2. Enter the real UUID
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Replace:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+__REPLACE_WITH_REAL_D1_UUID__
+```
+
+in `wrangler.jsonc` with the UUID returned by Cloudflare.
+
+The `preview_database_id` is intentionally a local-only identifier. It is not a production database ID.
+
+### 3. Test the migration locally
+
+```bash
+npm run d1:migrations:list:local
+npm run d1:migrate:local
+npm run d1:tables:local
+```
+
+The baseline schema is in `migrations/0001_init.sql`. It is derived from the current SQLite schema in `lib/db.ts` and includes the current `purchases` and `payments` columns.
+
+### 4. Inspect remote state before applying
+
+After authentication and after the real UUID is present:
+
+```bash
+npm run d1:migrations:list:remote
+```
+
+Review the output before applying anything remotely.
+
+### 5. Apply to the remote D1 database
+
+Only after local migration/testing is clean:
+
+```bash
+npm run d1:migrate:remote
+```
+
+Do not add ad-hoc production SQL; future schema changes should be new numbered migrations.
+
+## Safety rules
+
+- `main` is not used for D1 changes until the feature branch has been tested.
+- Never commit Cloudflare API tokens or `.dev.vars` secrets.
+- Never replace the UUID placeholder with a guessed or unrelated database ID.
+- Remote migrations are an explicit final step after local verification.
