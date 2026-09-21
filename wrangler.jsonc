@@ -6,7 +6,7 @@
     {
       "binding": "DB",
       "database_name": "company-expenses",
-      "database_id": "__REPLACE_WITH_REAL_D1_UUID__",
+      "database_id": "23fff827-1bf7-49ca-bf12-45b7d94c450a",
       "preview_database_id": "local-company-expenses",
       "migrations_dir": "migrations"
     }
