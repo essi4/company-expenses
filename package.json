@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "d1:import:supabase": "node scripts/migrate-supabase-to-d1.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
