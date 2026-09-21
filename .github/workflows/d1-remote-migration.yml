@@ -1,6 +1,9 @@
 name: Cloudflare D1 Remote Migration
 
 on:
+  push:
+    branches:
+      - "feature/d1-migration-foundation"
   workflow_dispatch:
 
 jobs:
@@ -8,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -20,7 +22,21 @@ jobs:
           ref: feature/d1-migration-foundation
           fetch-depth: 1
 
+      - name: Check authorized remote-migration trigger
+        id: authorize
+        shell: bash
+        run: |
+          request="$(git log -1 --pretty=%s)"
+          if [[ "$request" == "chore(d1): apply remote migration"* || "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Authorized remote migration trigger."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No remote migration request on this push; exiting safely."
+          fi
+
       - name: Validate Cloudflare secrets
+        if: steps.authorize.outputs.enabled == 'true'
         shell: bash
         run: |
           test -n "$CLOUDFLARE_ACCOUNT_ID" || {
@@ -33,18 +49,23 @@ jobs:
           }
 
       - name: Verify real D1 UUID is configured
+        if: steps.authorize.outputs.enabled == 'true'
         run: node scripts/assert-real-d1.mjs
 
       - name: Validate Wrangler
+        if: steps.authorize.outputs.enabled == 'true'
         run: npx --yes wrangler@4.135.0 --version
 
       - name: Inspect remote migration state
+        if: steps.authorize.outputs.enabled == 'true'
         run: npx --yes wrangler@4.135.0 d1 migrations list company-expenses --remote
 
       - name: Apply remote migrations
+        if: steps.authorize.outputs.enabled == 'true'
         run: npx --yes wrangler@4.135.0 d1 migrations apply company-expenses --remote
 
-      - name: Verify remote tables
+      - name: Verify remote schema
+        if: steps.authorize.outputs.enabled == 'true'
         run: |
           npx --yes wrangler@4.135.0 d1 execute company-expenses --remote --command="SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
           npx --yes wrangler@4.135.0 d1 execute company-expenses --remote --command="SELECT name FROM sqlite_master WHERE type='index' ORDER BY name;"
