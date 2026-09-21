@@ -15,7 +15,8 @@
     "d1:verify-remote-id": "node scripts/assert-real-d1.mjs",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "d1:verify:local": "npx wrangler@4.135.0 d1 migrations apply company-expenses --local && npx wrangler@4.135.0 d1 execute company-expenses --local --command=\"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' ORDER BY name;\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
