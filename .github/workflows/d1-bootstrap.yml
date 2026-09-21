@@ -8,7 +8,6 @@ on:
 
 jobs:
   bootstrap-d1:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(d1): bootstrap remote')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -19,13 +18,26 @@ jobs:
       DB_NAME: company-expenses
 
     steps:
-      - name: Checkout feature branch
+        id: authorize
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" || "$COMMIT_MESSAGE" == chore(d1):\ bootstrap\ remote* ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Authorized D1 bootstrap trigger."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No bootstrap request on this push; exiting safely."
+          fi
+
         uses: actions/checkout@v4
         with:
           ref: feature/d1-migration-foundation
           fetch-depth: 1
 
-      - name: Validate Cloudflare secrets
         shell: bash
         run: |
           test -n "$CLOUDFLARE_ACCOUNT_ID" || {
@@ -37,7 +49,6 @@ jobs:
             exit 1
           }
 
-      - name: Inspect existing D1 database
         id: inspect
         shell: bash
         run: |
@@ -74,7 +85,6 @@ PY
             echo "No existing company-expenses D1 database found."
           fi
 
-      - name: Create D1 database when missing
         if: steps.inspect.outputs.exists == 'false'
         shell: bash
         run: |
@@ -100,7 +110,6 @@ if not uuid:
 print(uuid)
 PY
 
-      - name: Update Wrangler config with real UUID
         shell: bash
         run: |
           set -euo pipefail
@@ -130,12 +139,10 @@ PY
 
           node scripts/assert-real-d1.mjs
 
-      - name: Remove bootstrap request marker
         shell: bash
         run: |
           rm -f .github/d1-bootstrap.requested
 
-      - name: Commit real D1 UUID
         shell: bash
         run: |
           set -euo pipefail
@@ -151,7 +158,6 @@ PY
           git commit -m "chore(d1): bind feature branch to real D1 database"
           git push origin HEAD:feature/d1-migration-foundation
 
-      - name: Show non-secret result
         run: |
           echo "D1 bootstrap completed for database: $DB_NAME"
           echo "The UUID was written to wrangler.jsonc on feature/d1-migration-foundation."
