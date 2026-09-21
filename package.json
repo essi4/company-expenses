@@ -10,8 +10,9 @@
     "d1:migrations:list:local": "npx wrangler@4.135.0 d1 migrations list company-expenses --local",
     "d1:migrate:local": "npx wrangler@4.135.0 d1 migrations apply company-expenses --local",
     "d1:tables:local": "npx wrangler@4.135.0 d1 execute company-expenses --local --command=\"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;\"",
-    "d1:migrations:list:remote": "npx wrangler@4.135.0 d1 migrations list company-expenses --remote",
-    "d1:migrate:remote": "npx wrangler@4.135.0 d1 migrations apply company-expenses --remote"
+    "d1:migrations:list:remote": "npm run d1:verify-remote-id && npx wrangler@4.135.0 d1 migrations list company-expenses --remote",
+    "d1:migrate:remote": "npm run d1:verify-remote-id && npx wrangler@4.135.0 d1 migrations apply company-expenses --remote",
+    "d1:verify-remote-id": "node scripts/assert-real-d1.mjs __REPLACE_WITH_REAL_D1_UUID__"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
