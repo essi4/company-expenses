@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { getCompanyContext } from "@/lib/company";
+import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,7 @@ function normalizeAmount(value: unknown) {
       .replace(/,/g, "")
       .replace(/٬/g, "")
       .trim();
-
     const number = Number(normalized);
-
     return Number.isFinite(number) ? number : 0;
   }
 
@@ -63,7 +62,6 @@ function normalizeAmount(value: unknown) {
 
 function normalizeDate(value: unknown) {
   if (!value) return null;
-
   return toEnglishDigits(String(value))
     .trim()
     .replace(/\//g, "-")
@@ -73,32 +71,22 @@ function normalizeDate(value: unknown) {
 
 function getTodayGregorian() {
   const now = new Date();
-
-  return `${now.getFullYear()}-${pad2(
-    now.getMonth() + 1
-  )}-${pad2(now.getDate())}`;
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
+    now.getDate()
+  )}`;
 }
 
 function getStartOfMonthGregorian() {
   const now = new Date();
-
-  return `${now.getFullYear()}-${pad2(
-    now.getMonth() + 1
-  )}-01`;
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`;
 }
 
 function getStartOfWeekGregorian() {
   const now = new Date();
-
   const day = now.getDay();
-
-  // Monday = first day of week
   const diff = day === 0 ? 6 : day - 1;
-
   const start = new Date(now);
-
   start.setDate(start.getDate() - diff);
-
   return `${start.getFullYear()}-${pad2(
     start.getMonth() + 1
   )}-${pad2(start.getDate())}`;
@@ -106,240 +94,123 @@ function getStartOfWeekGregorian() {
 
 function mapPurchase(item: PurchaseRow) {
   const date =
-    normalizeDate(item.date) ||
-    normalizeDate(item.purchase_date);
+    normalizeDate(item.date) || normalizeDate(item.purchase_date) || "";
 
   return {
     id: item.id,
     date,
-    seller:
-      item.seller ||
-      item.supplier ||
-      "",
-    description:
-      item.description ||
-      item.title ||
-      "",
+    seller: item.seller || item.supplier || "",
+    description: item.description || item.title || "",
     amount: normalizeAmount(item.amount),
     payment: item.payment || "کارت",
-    invoiceNumber:
-      item.invoice_number || "",
-    invoiceImage:
-      item.invoice_image || "",
+    invoiceNumber: item.invoice_number || "",
+    invoiceImage: item.invoice_image || "",
     notes: item.notes || "",
-    status:
-      item.status || "ثبت شده",
+    status: item.status || "ثبت شده",
   };
 }
 
 function mapPayment(item: PaymentRow) {
   const date =
-    normalizeDate(item.date) ||
-    normalizeDate(item.payment_date);
+    normalizeDate(item.date) || normalizeDate(item.payment_date) || "";
 
   return {
     id: item.id,
     date,
     title: item.title || "",
     amount: normalizeAmount(item.amount),
-    method:
-      item.method ||
-      item.payment_method ||
-      "کارت",
-    description:
-      item.description || "",
-    receiptImage:
-      item.receipt_image || "",
+    method: item.method || item.payment_method || "کارت",
+    description: item.description || "",
+    receiptImage: item.receipt_image || "",
     notes: item.notes || "",
   };
 }
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const context = await getCompanyContext();
 
-    const range =
-      searchParams.get("range") || "month";
+    if (!context.companyId) {
+      return NextResponse.json(
+        { success: false, message: "دسترسی غیرمجاز" },
+        { status: 401 }
+      );
+    }
 
-    let startDate =
-      getStartOfMonthGregorian();
+    const range = new URL(request.url).searchParams.get("range") || "month";
 
+    let startDate = getStartOfMonthGregorian();
     if (range === "today") {
       startDate = getTodayGregorian();
     } else if (range === "week") {
       startDate = getStartOfWeekGregorian();
     }
 
-    const endDate =
-      getTodayGregorian();
+    const endDate = getTodayGregorian();
+    const db = getDb();
 
-    /* =====================================================
-       PURCHASES
-    ===================================================== */
+    const [purchaseResult, paymentResult] = await Promise.all([
+      db
+        .prepare(
+          `SELECT
+            id, date, purchase_date, seller, supplier, title, description,
+            amount, payment, invoice_number, invoice_image, notes, status
+           FROM purchases
+           WHERE company_id = ?
+             AND COALESCE(purchase_date, date) >= ?
+             AND COALESCE(purchase_date, date) <= ?
+           ORDER BY COALESCE(purchase_date, date) DESC, id DESC`
+        )
+        .bind(context.companyId, startDate, endDate)
+        .all<PurchaseRow>(),
+      db
+        .prepare(
+          `SELECT
+            id, date, payment_date, title, amount, method, payment_method,
+            description, receipt_image, notes
+           FROM payments
+           WHERE company_id = ?
+             AND COALESCE(payment_date, date) >= ?
+             AND COALESCE(payment_date, date) <= ?
+           ORDER BY COALESCE(payment_date, date) DESC, id DESC`
+        )
+        .bind(context.companyId, startDate, endDate)
+        .all<PaymentRow>(),
+    ]);
 
-    const {
-      data: purchaseData,
-      error: purchaseError,
-    } = await supabase
-      .from("purchases")
-      .select(`
-        id,
-        date,
-        purchase_date,
-        seller,
-        supplier,
-        title,
-        description,
-        amount,
-        payment,
-        invoice_number,
-        invoice_image,
-        notes,
-        status
-      `)
-      .gte("purchase_date", startDate)
-      .lte("purchase_date", endDate)
-      .order("purchase_date", {
-        ascending: false,
-      })
-      .order("id", {
-        ascending: false,
-      });
+    const purchases = purchaseResult.results.map(mapPurchase);
+    const payments = paymentResult.results.map(mapPayment);
 
-    if (purchaseError) {
-      console.error(
-        "GET reports purchases error:",
-        purchaseError
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "خطا در دریافت خریدهای گزارش",
-          error:
-            purchaseError.message,
-        },
-        { status: 500 }
-      );
-    }
-
-    /* =====================================================
-       PAYMENTS
-    ===================================================== */
-
-    const {
-      data: paymentData,
-      error: paymentError,
-    } = await supabase
-      .from("payments")
-      .select(`
-        id,
-        date,
-        payment_date,
-        title,
-        amount,
-        method,
-        payment_method,
-        description,
-        receipt_image,
-        notes
-      `)
-      .gte("payment_date", startDate)
-      .lte("payment_date", endDate)
-      .order("payment_date", {
-        ascending: false,
-      })
-      .order("id", {
-        ascending: false,
-      });
-
-    if (paymentError) {
-      console.error(
-        "GET reports payments error:",
-        paymentError
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "خطا در دریافت واریزهای گزارش",
-          error:
-            paymentError.message,
-        },
-        { status: 500 }
-      );
-    }
-
-    const purchases =
-      (purchaseData || []).map(
-        mapPurchase
-      );
-
-    const payments =
-      (paymentData || []).map(
-        mapPayment
-      );
-
-    const purchaseTotal =
-      purchases.reduce(
-        (sum, item) =>
-          sum + Number(item.amount || 0),
-        0
-      );
-
-    const paymentTotal =
-      payments.reduce(
-        (sum, item) =>
-          sum + Number(item.amount || 0),
-        0
-      );
-
-    const balance =
-      purchaseTotal - paymentTotal;
+    const purchaseTotal = purchases.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
+    const paymentTotal = payments.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
+    );
 
     return NextResponse.json({
       success: true,
-
       range,
-
       startDate,
-
       endDate,
-
       summary: {
-        purchaseCount:
-          purchases.length,
-
+        purchaseCount: purchases.length,
         purchaseTotal,
-
-        paymentCount:
-          payments.length,
-
+        paymentCount: payments.length,
         paymentTotal,
-
-        balance,
+        balance: purchaseTotal - paymentTotal,
       },
-
       purchases,
-
       payments,
     });
   } catch (error) {
-    console.error(
-      "GET reports exception:",
-      error
-    );
-
     return NextResponse.json(
       {
         success: false,
         message: "خطا در دریافت گزارش",
-        error:
-          error instanceof Error
-            ? error.message
-            : "خطای نامشخص",
+        error: error instanceof Error ? error.message : "خطای نامشخص",
       },
       { status: 500 }
     );
