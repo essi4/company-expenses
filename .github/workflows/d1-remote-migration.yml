@@ -16,8 +16,8 @@ on:
         required: true
         type: choice
         options:
-          - APPLY-0001
-        default: APPLY-0001
+          - APPLY-D1-MIGRATIONS
+        default: APPLY-D1-MIGRATIONS
 
 concurrency:
   group: d1-remote-migration
@@ -68,8 +68,8 @@ jobs:
         if: inputs.action == 'apply'
         shell: bash
         run: |
-          test "${{ inputs.confirm }}" = "APPLY-0001" || {
-            echo "::error::Refusing remote migration: confirmation must be exactly APPLY-0001"
+          test "${{ inputs.confirm }}" = "APPLY-D1-MIGRATIONS" || {
+            echo "::error::Refusing remote migration: confirmation must be exactly APPLY-D1-MIGRATIONS"
             exit 1
           }
 
