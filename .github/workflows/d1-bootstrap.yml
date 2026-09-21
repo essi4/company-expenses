@@ -1,0 +1,148 @@
+name: Cloudflare D1 Bootstrap
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap-d1:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DB_NAME: company-expenses
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/d1-migration-foundation
+          fetch-depth: 1
+
+      - name: Validate Cloudflare secrets
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || {
+            echo "::error::Missing GitHub secret CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          }
+          test -n "$CLOUDFLARE_API_TOKEN" || {
+            echo "::error::Missing GitHub secret CLOUDFLARE_API_TOKEN"
+            exit 1
+          }
+
+      - name: Inspect existing D1 database
+        id: inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(curl -fsS \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database?name=$DB_NAME&per_page=100")"
+
+          python3 - "$response" <<'PY' > /tmp/d1_uuid
+import json, sys
+
+payload = json.loads(sys.argv[1])
+if not payload.get("success", False):
+    raise SystemExit("Cloudflare API returned success=false")
+
+items = payload.get("result") or []
+if len(items) > 1:
+    raise SystemExit(f"Refusing to continue: found {len(items)} D1 databases named company-expenses")
+
+if items:
+    uuid = items[0].get("uuid")
+    if not uuid:
+        raise SystemExit("Existing D1 database has no UUID in API response")
+    print(uuid)
+PY
+
+          if [ -s /tmp/d1_uuid ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "A D1 database named company-expenses already exists; reusing it."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "No existing company-expenses D1 database found."
+          fi
+
+      - name: Create D1 database when missing
+        if: steps.inspect.outputs.exists == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(curl -fsS -X POST \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database" \
+            --data '{"name":"company-expenses"}')"
+
+          python3 - "$response" <<'PY' > /tmp/d1_uuid
+import json, sys
+
+payload = json.loads(sys.argv[1])
+if not payload.get("success", False):
+    raise SystemExit(json.dumps(payload.get("errors", []), ensure_ascii=False))
+
+uuid = (payload.get("result") or {}).get("uuid")
+if not uuid:
+    raise SystemExit("Cloudflare create response did not contain a UUID")
+
+print(uuid)
+PY
+
+      - name: Update Wrangler config with real UUID
+        shell: bash
+        run: |
+          set -euo pipefail
+          UUID="$(cat /tmp/d1_uuid)"
+
+          python3 - "$UUID" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+uuid = sys.argv[1]
+path = Path("wrangler.jsonc")
+text = path.read_text(encoding="utf-8")
+
+updated, count = re.subn(
+    r'("database_id"\s*:\s*")[^"]+(")',
+    rf'\g<1>{uuid}\g<2>',
+    text,
+    count=1,
+)
+
+if count != 1:
+    raise SystemExit("Could not locate database_id in wrangler.jsonc")
+
+path.write_text(updated, encoding="utf-8")
+PY
+
+          node scripts/assert-real-d1.mjs
+
+      - name: Commit real D1 UUID
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- wrangler.jsonc; then
+            echo "Wrangler config already contains the real D1 UUID."
+            exit 0
+          fi
+
+          git add wrangler.jsonc
+          git commit -m "chore(d1): bind feature branch to real D1 database"
+          git push origin HEAD:feature/d1-migration-foundation
+
+      - name: Show non-secret result
+        run: |
+          echo "D1 bootstrap completed for database: $DB_NAME"
+          echo "The UUID was written to wrangler.jsonc on feature/d1-migration-foundation."
