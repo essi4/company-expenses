@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import { spawn } from "node:child_process";
 
 const required = [
@@ -28,9 +27,11 @@ if (!supabaseKey.startsWith("sb_secret_") && !supabaseKey.startsWith("eyJ")) {
   );
 }
 
-const supabase = createClient(process.env.SUPABASE_URL, supabaseKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const restBaseUrl = `${process.env.SUPABASE_URL.replace(/\\/$/, "")}/rest/v1`;
+const restHeaders = {
+  apikey: supabaseKey,
+  Accept: "application/json",
+};
 
 const tables = [
   "companies",
@@ -72,15 +73,29 @@ function run(command, args) {
 }
 
 async function supabaseCount(table) {
-  const { count, error } = await supabase
-    .from(table)
-    .select("*", { count: "exact", head: true });
+  const response = await fetch(
+    `${restBaseUrl}/${table}?select=*&limit=1`,
+    {
+      method: "HEAD",
+      headers: {
+        ...restHeaders,
+        Prefer: "count=exact",
+      },
+    }
+  );
 
-  if (error) {
-    throw new Error(`Supabase count failed for ${table}: ${error.message}`);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Supabase count failed for ${table}: HTTP ${response.status} ${body}`);
   }
 
-  return Number(count ?? 0);
+  const contentRange = response.headers.get("content-range");
+  const match = contentRange?.match(/\\/(\\d+)$/);
+  if (!match) {
+    throw new Error(`Supabase count failed for ${table}: missing Content-Range total`);
+  }
+
+  return Number(match[1]);
 }
 
 const query = tables
