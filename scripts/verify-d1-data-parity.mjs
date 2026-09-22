@@ -97,39 +97,33 @@ async function supabaseCount(table) {
   return Number(match[1]);
 }
 
-const query = tables
-  .map(
-    (table) =>
-      `SELECT '${table}' AS table_name, COUNT(*) AS row_count FROM "${table}"`
-  )
-  .join(" UNION ALL ");
+async function d1Count(table) {
+  const raw = await run("npx", [
+    "wrangler@4.135.0",
+    "d1",
+    "execute",
+    "company-expenses",
+    "--remote",
+    "--command",
+    `SELECT COUNT(*) AS row_count FROM "${table}";`,
+    "--json",
+  ]);
 
-const raw = await run("npx", [
-  "wrangler@4.135.0",
-  "d1",
-  "execute",
-  "company-expenses",
-  "--remote",
-  "--command",
-  query,
-  "--json",
-]);
+  const parsed = JSON.parse(raw);
+  const rows = parsed?.[0]?.results ?? parsed?.results ?? [];
 
-const parsed = JSON.parse(raw);
-const rows =
-  parsed?.[0]?.results ??
-  parsed?.results ??
-  [];
+  if (!rows.length) {
+    throw new Error(`D1 count failed for ${table}: no result row returned`);
+  }
 
-const d1Counts = new Map(
-  rows.map((row) => [String(row.table_name), Number(row.row_count)])
-);
+  return Number(rows[0].row_count);
+}
 
 const failures = [];
 
 for (const table of tables) {
   const source = await supabaseCount(table);
-  const target = d1Counts.get(table) ?? 0;
+  const target = await d1Count(table);
 
   console.log(`${table}: Supabase=${source} D1=${target}`);
 
