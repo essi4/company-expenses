@@ -36,7 +36,7 @@ if (process.env.CONFIRM_D1_DATA_IMPORT !== "IMPORT-D1-DATA") {
   );
 }
 
-const restBaseUrl = `${process.env.SUPABASE_URL.replace(/\\/$/, "")}/rest/v1`;
+const restBaseUrl = `${process.env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1`;
 const restHeaders = {
   apikey: supabaseKey,
   Accept: "application/json",
