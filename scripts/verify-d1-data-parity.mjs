@@ -27,7 +27,7 @@ if (!supabaseKey.startsWith("sb_secret_") && !supabaseKey.startsWith("eyJ")) {
   );
 }
 
-const restBaseUrl = `${process.env.SUPABASE_URL.replace(/\\/$/, "")}/rest/v1`;
+const restBaseUrl = `${process.env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1`;
 const restHeaders = {
   apikey: supabaseKey,
   Accept: "application/json",
@@ -89,7 +89,7 @@ async function supabaseCount(table) {
   }
 
   const contentRange = response.headers.get("content-range");
-  const match = contentRange?.match(/\\/(\\d+)$/);
+  const match = contentRange?.match(/\/(\d+)$/);
   if (!match) {
     throw new Error(`Supabase count failed for ${table}: missing Content-Range total`);
   }
