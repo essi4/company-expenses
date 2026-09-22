@@ -61,8 +61,26 @@ jobs:
         run: npm run d1:import:supabase
 
       - name: Verify imported row counts
+        shell: bash
         run: |
-          npx wrangler@4.135.0 d1 execute company-expenses --remote --command="SELECT 'companies' AS table_name, COUNT(*) AS row_count FROM companies UNION ALL SELECT 'company_members', COUNT(*) FROM company_members UNION ALL SELECT 'purchases', COUNT(*) FROM purchases UNION ALL SELECT 'payments', COUNT(*) FROM payments UNION ALL SELECT 'suppliers', COUNT(*) FROM suppliers UNION ALL SELECT 'categories', COUNT(*) FROM categories UNION ALL SELECT 'accounts', COUNT(*) FROM accounts UNION ALL SELECT 'budgets', COUNT(*) FROM budgets UNION ALL SELECT 'checks', COUNT(*) FROM checks UNION ALL SELECT 'purchase_items', COUNT(*) FROM purchase_items;"
+          set -euo pipefail
 
+          tables=(
+            companies
+            company_members
+            suppliers
+            categories
+            accounts
+            budgets
+            checks
+            purchases
+            payments
+            purchase_items
+          )
+
+          for table in "${tables[@]}"; do
+            echo "Checking D1 row count: $table"
+            npx wrangler@4.135.0 d1 execute company-expenses --remote --command="SELECT COUNT(*) AS row_count FROM \"$table\";"
+          done
       - name: Verify Supabase to D1 row-count parity
         run: npm run d1:verify:parity
