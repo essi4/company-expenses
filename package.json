@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "d1:verify:parity": "node scripts/verify-d1-data-parity.mjs",
+    "d1:import:supabase": "node scripts/migrate-supabase-to-d1.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -12,23 +14,28 @@
     "d1:tables:local": "npx wrangler@4.135.0 d1 execute company-expenses --local --command=\"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;\"",
     "d1:migrations:list:remote": "npm run d1:verify-remote-id && npx wrangler@4.135.0 d1 migrations list company-expenses --remote",
     "d1:migrate:remote": "npm run d1:verify-remote-id && npx wrangler@4.135.0 d1 migrations apply company-expenses --remote",
-    "d1:verify-remote-id": "node scripts/assert-real-d1.mjs"
+    "d1:verify-remote-id": "node scripts/assert-real-d1.mjs",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "d1:verify:local": "npx wrangler@4.135.0 d1 migrations apply company-expenses --local && npx wrangler@4.135.0 d1 execute company-expenses --local --command=\"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' ORDER BY name;\""
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.112.4",
-    "better-sqlite3": "^13.0.3",
     "next": "14.2.35",
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
+    "@opennextjs/cloudflare": "1.15.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@cloudflare/workers-types": "5.20260921.1",
+    "wrangler": "4.135.0"
   }
 }

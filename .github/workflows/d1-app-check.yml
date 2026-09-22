@@ -1,0 +1,45 @@
+name: D1 Application Check
+
+on:
+  push:
+    branches:
+      - feature/d1-data-layer
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-app-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Verify local D1 migration
+        run: npm run d1:verify:local
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Next.js production build
+        run: npm run build
+
+      - name: OpenNext Cloudflare build
+        run: npx opennextjs-cloudflare build
