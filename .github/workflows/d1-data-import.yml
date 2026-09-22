@@ -7,6 +7,9 @@ on:
         description: "Type IMPORT-D1-DATA to authorize the one-time data copy"
         required: true
         type: string
+  push:
+    branches:
+      - feature/d1-data-layer
 
 permissions:
   contents: read
@@ -17,7 +20,7 @@ concurrency:
 
 jobs:
   import:
-    if: inputs.confirm == 'IMPORT-D1-DATA'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm == 'IMPORT-D1-DATA')
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -58,6 +61,7 @@ jobs:
         run: npm run d1:migrations:list:remote
 
       - name: Import Supabase business data into D1
+        if: github.event_name == 'workflow_dispatch'
         run: npm run d1:import:supabase
 
       - name: Verify imported row counts
