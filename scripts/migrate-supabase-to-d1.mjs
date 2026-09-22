@@ -36,11 +36,11 @@ if (process.env.CONFIRM_D1_DATA_IMPORT !== "IMPORT-D1-DATA") {
   );
 }
 
-const { createClient } = await import("@supabase/supabase-js");
-
-const supabase = createClient(process.env.SUPABASE_URL, supabaseKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const restBaseUrl = `${process.env.SUPABASE_URL.replace(/\\/$/, "")}/rest/v1`;
+const restHeaders = {
+  apikey: supabaseKey,
+  Accept: "application/json",
+};
 
 const tables = [
   "companies",
@@ -73,9 +73,30 @@ function primaryKey(table) {
 }
 
 async function readTable(table) {
-  const { data, error } = await supabase.from(table).select("*");
-  if (error) throw new Error(`Supabase read failed for ${table}: ${error.message}`);
-  return data ?? [];
+  const rows = [];
+  const pageSize = 1000;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const response = await fetch(
+      `${restBaseUrl}/${table}?select=*&limit=${pageSize}&offset=${offset}`,
+      { headers: restHeaders }
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Supabase read failed for ${table}: HTTP ${response.status} ${body}`);
+    }
+
+    const page = await response.json();
+    if (!Array.isArray(page)) {
+      throw new Error(`Supabase read failed for ${table}: expected an array response`);
+    }
+
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return rows;
 }
 
 const blocks = [
