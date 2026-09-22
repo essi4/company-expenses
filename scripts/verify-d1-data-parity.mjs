@@ -3,7 +3,6 @@ import { spawn } from "node:child_process";
 
 const required = [
   "SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
   "CLOUDFLARE_ACCOUNT_ID",
   "CLOUDFLARE_API_TOKEN",
 ];
@@ -14,11 +13,24 @@ for (const name of required) {
   }
 }
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+const supabaseKey =
+  process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseKey) {
+  throw new Error(
+    "Missing required environment variable: SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY)"
+  );
+}
+
+if (!supabaseKey.startsWith("sb_secret_") && !supabaseKey.startsWith("eyJ")) {
+  throw new Error(
+    "Invalid Supabase key format: expected a new sb_secret_* key or legacy JWT service_role key"
+  );
+}
+
+const supabase = createClient(process.env.SUPABASE_URL, supabaseKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 const tables = [
   "companies",
