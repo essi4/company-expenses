@@ -76,7 +76,6 @@ async function supabaseCount(table) {
   const response = await fetch(
     `${restBaseUrl}/${table}?select=*&limit=1`,
     {
-      method: "HEAD",
       headers: {
         ...restHeaders,
         Prefer: "count=exact",
