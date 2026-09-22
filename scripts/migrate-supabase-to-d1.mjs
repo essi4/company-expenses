@@ -5,7 +5,6 @@ import { spawn } from "node:child_process";
 
 const required = [
   "SUPABASE_URL",
-  "SUPABASE_SERVICE_ROLE_KEY",
   "CLOUDFLARE_ACCOUNT_ID",
   "CLOUDFLARE_API_TOKEN",
 ];
@@ -16,6 +15,21 @@ for (const name of required) {
   }
 }
 
+const supabaseKey =
+  process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseKey) {
+  throw new Error(
+    "Missing Supabase backend key. Set SUPABASE_SECRET_KEY (preferred) or SUPABASE_SERVICE_ROLE_KEY."
+  );
+}
+
+if (!/^sb_secret_|^eyJ/.test(supabaseKey)) {
+  throw new Error(
+    "Supabase backend key format is invalid. Use the project's Secret key (sb_secret_...) or legacy service_role JWT (eyJ...)."
+  );
+}
+
 if (process.env.CONFIRM_D1_DATA_IMPORT !== "IMPORT-D1-DATA") {
   throw new Error(
     "Refusing data import. Set CONFIRM_D1_DATA_IMPORT=IMPORT-D1-DATA to continue."
@@ -24,11 +38,9 @@ if (process.env.CONFIRM_D1_DATA_IMPORT !== "IMPORT-D1-DATA") {
 
 const { createClient } = await import("@supabase/supabase-js");
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
+const supabase = createClient(process.env.SUPABASE_URL, supabaseKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 const tables = [
   "companies",
@@ -111,16 +123,19 @@ function run(command, args) {
   });
 }
 
-await run("npx", [
-  "wrangler@4.135.0",
-  "d1",
-  "execute",
-  "company-expenses",
-  "--remote",
-  "--file",
-  file,
-  "--yes",
-]);
+try {
+  await run("npx", [
+    "wrangler@4.135.0",
+    "d1",
+    "execute",
+    "company-expenses",
+    "--remote",
+    "--file",
+    file,
+    "--yes",
+  ]);
+} finally {
+  await fs.rm(dir, { recursive: true, force: true });
+}
 
-await fs.rm(dir, { recursive: true, force: true });
 console.log("Supabase → D1 data import completed.");
