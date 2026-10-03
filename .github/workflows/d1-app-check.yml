@@ -3,6 +3,7 @@ name: D1 Application Check
 on:
   push:
     branches:
+      - master
       - feature/d1-data-layer
   pull_request:
     branches:
@@ -30,7 +31,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Verify local D1 migration
         run: npm run d1:verify:local
@@ -43,3 +44,35 @@ jobs:
 
       - name: OpenNext Cloudflare build
         run: npx opennextjs-cloudflare build
+
+      - name: Cloudflare bundle dry-run
+        run: npx wrangler deploy --dry-run --outdir=.wrangler-dryrun
+
+      - name: Report bundle size
+        shell: bash
+        run: |
+          set -eo pipefail
+          {
+            echo "## Cloudflare bundle size"
+            echo
+            echo "**Raw dry-run directory:**"
+            du -sh .wrangler-dryrun/
+            echo
+            echo "**Gzip of dry-run output:**"
+            tar -czf - -C .wrangler-dryrun . | wc -c | awk '{printf "%.2f MB\n", $1/1024/1024}'
+            echo
+            echo "### Top 10 files"
+            find .wrangler-dryrun -type f -exec du -h {} + | sort -hr | head -10
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce bundle size limit
+        shell: bash
+        run: |
+          set -euo pipefail
+          SIZE=$(tar -czf - -C .wrangler-dryrun . | wc -c)
+          LIMIT=$((10 * 1024 * 1024))
+          if [ "$SIZE" -gt "$LIMIT" ]; then
+            echo "❌ Bundle too large: $((SIZE/1024/1024)) MB > 10 MB" >&2
+            exit 1
+          fi
+          echo "✅ Bundle size OK: $(awk "BEGIN{printf \"%.2f\", $SIZE/1024/1024}") MB"
