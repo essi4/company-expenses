@@ -180,6 +180,7 @@ export default function MissionReportPage() {
   const exportImage = async () => {
     if (!reportRef.current || isEditing) return;
     setExporting(true);
+    document.body.classList.add("document-export");
     try {
       const dataUrl = await toPng(reportRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
       const link = document.createElement("a");
@@ -187,6 +188,7 @@ export default function MissionReportPage() {
       link.href = dataUrl;
       link.click();
     } finally {
+      document.body.classList.remove("document-export");
       setExporting(false);
     }
   };
@@ -194,7 +196,7 @@ export default function MissionReportPage() {
   const exportPdf = async () => {
     if (!reportRef.current || isEditing) return;
     setExporting(true);
-    document.body.classList.add("pdf-export");
+    document.body.classList.add("document-export");
     try {
       const dataUrl = await toPng(reportRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -212,7 +214,7 @@ export default function MissionReportPage() {
       }
       pdf.save(`${documentNumber || "mission-report"}.pdf`);
     } finally {
-      document.body.classList.remove("pdf-export");
+      document.body.classList.remove("document-export");
       setExporting(false);
     }
   };
@@ -227,6 +229,9 @@ export default function MissionReportPage() {
             <p className="mt-1 text-xs text-slate-500">{hasLocalDraft ? "پیش‌نویس محلی موجود است" : "گزارش جدید"}{message ? ` · ${message}` : ""}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => (window.location.href = "/")} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
+              ← داشبورد
+            </button>
             {!isEditing ? (
               <button onClick={startEditing} className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-white">✏️ ویرایش گزارش</button>
             ) : (
@@ -290,7 +295,7 @@ export default function MissionReportPage() {
           )}
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-sm mission-table">
               <thead>
                 <tr className="bg-slate-900 text-white">
                   <th className="border p-2">ردیف</th>
@@ -304,14 +309,14 @@ export default function MissionReportPage() {
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={row.id}>
-                    <td className="border p-2 text-center">{(index + 1).toLocaleString("fa-IR")}</td>
-                    <td className="border p-1 align-top">
+                    <td data-label="ردیف" className="border p-2 text-center">{(index + 1).toLocaleString("fa-IR")}</td>
+                    <td data-label="نام و نام خانوادگی" className="border p-1 align-top">
                       {isEditing ? <input value={row.personName} onChange={(e) => updateRow(row.id, { personName: e.target.value })} className="input" placeholder="نام و نام خانوادگی" /> : <span className="block p-1">{row.personName || "—"}</span>}
                     </td>
-                    <td className="border p-1 align-top">
+                    <td data-label="مدت (روز)" className="border p-1 align-top">
                       {isEditing ? <input inputMode="numeric" type="number" min={0} value={row.days} onChange={(e) => updateRow(row.id, { days: Math.max(0, Number(e.target.value) || 0) })} className="input text-center" /> : <span className="block p-1 text-center">{money(row.days)} روز</span>}
                     </td>
-                    <td className="border p-1 align-top">
+                    <td data-label="محل مأموریت(ها)" className="border p-1 align-top">
                       <div className="space-y-2">
                         {row.locations.map((location, locationIndex) => (
                           <div key={`${row.id}-${locationIndex}`} className="flex items-center gap-1">
@@ -329,7 +334,7 @@ export default function MissionReportPage() {
                         {isEditing && <button onClick={() => addLocation(row.id)} className="text-xs font-bold text-sky-700">＋ افزودن محل</button>}
                       </div>
                     </td>
-                    <td className="border p-1 align-top">
+                    <td data-label="موضوع / شرح فعالیت" className="border p-1 align-top">
                       {isEditing ? (
                         <div className="space-y-2">
                           <input value={row.tag || ""} onChange={(e) => updateRow(row.id, { tag: e.target.value })} className="input" placeholder="برچسب، مثلاً شبکه / فیبر" />
@@ -342,13 +347,13 @@ export default function MissionReportPage() {
                         </div>
                       )}
                     </td>
-                    <td className="border p-1 text-center print:hidden">{isEditing && <button onClick={() => removeRow(row.id)} className="font-bold text-red-600" aria-label="حذف نفر">×</button>}</td>
+                    <td className="actions border p-1 text-center print:hidden">{isEditing && <button onClick={() => removeRow(row.id)} className="font-bold text-red-600" aria-label="حذف نفر">×</button>}</td>
                   </tr>
                 ))}
-                <tr className="bg-slate-100 font-black">
-                  <td colSpan={2} className="border p-3">جمع کل کارکرد / مأموریت</td>
-                  <td className="border p-3 text-center">{money(totals.totalDays)} روز</td>
-                  <td colSpan={3} className="border p-3 text-center text-xs font-normal text-slate-600">مجموعاً {money(totals.totalPersonDays)} نفر-روز مأموریت ثبت شده است.</td>
+                <tr className="mission-total-row bg-slate-100 font-black">
+                  <td data-label="جمع" colSpan={2} className="border p-3">جمع کل کارکرد / مأموریت</td>
+                  <td data-label="روز" className="border p-3 text-center">{money(totals.totalDays)} روز</td>
+                  <td data-label="نفر-روز" colSpan={3} className="border p-3 text-center text-xs font-normal text-slate-600">مجموعاً {money(totals.totalPersonDays)} نفر-روز مأموریت ثبت شده است.</td>
                 </tr>
               </tbody>
             </table>
