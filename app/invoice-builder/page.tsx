@@ -612,12 +612,3 @@ function Summary({ label, value, highlight = false }: { label: string; value: st
   );
 }
 
-function Signature({ label, digital = false }: { label: string; digital?: boolean }) {
-  return (
-    <div className="text-center text-sm font-bold">
-      <div>{label}</div>
-      <div className="mx-auto mt-12 w-4/5 border-t border-slate-400" />
-      <div className="mt-2 text-[10px] font-normal text-slate-400">{digital ? "محل امضای دیجیتال با انگشت" : "محل امضا"}</div>
-    </div>
-  );
-}
