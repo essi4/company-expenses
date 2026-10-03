@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCompanyContext } from "@/lib/company";
 import { getDb } from "@/lib/db";
+import { requireSameOrigin } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +133,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const csrf = requireSameOrigin(request);
+  if (csrf) return csrf;
   try {
     const context = await getContext();
     if (!context) {
@@ -214,6 +217,8 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const csrf = requireSameOrigin(request);
+  if (csrf) return csrf;
   try {
     const context = await getContext();
     if (!context) {
@@ -245,6 +250,21 @@ export async function PUT(request: Request) {
         { success: false, message: validation },
         { status: 400 }
       );
+    }
+
+    if (type === "purchase_items") {
+      const purchaseId = Number(body.purchase_id);
+      const purchase = await getDb()
+        .prepare("SELECT id FROM purchases WHERE id = ? AND company_id = ?")
+        .bind(purchaseId, context.companyId)
+        .first<{ id: number }>();
+
+      if (!purchase) {
+        return NextResponse.json(
+          { success: false, message: "خرید انتخاب‌شده متعلق به شرکت فعال نیست." },
+          { status: 400 }
+        );
+      }
     }
 
     const columns = Object.keys(body);
@@ -296,6 +316,8 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const csrf = requireSameOrigin(request);
+  if (csrf) return csrf;
   try {
     const context = await getContext();
     if (!context) {

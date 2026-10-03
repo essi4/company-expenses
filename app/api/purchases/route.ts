@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCompanyContext } from "@/lib/company";
 import { getDb } from "@/lib/db";
+import { requireSameOrigin } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +115,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const csrf = requireSameOrigin(request);
+  if (csrf) return csrf;
   try {
     const context = await getContext();
     if (!context) {
@@ -197,6 +200,8 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const csrf = requireSameOrigin(request);
+  if (csrf) return csrf;
   try {
     const context = await getContext();
     if (!context) {
@@ -291,6 +296,8 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const csrf = requireSameOrigin(request);
+  if (csrf) return csrf;
   try {
     const context = await getContext();
     if (!context) {

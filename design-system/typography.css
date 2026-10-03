@@ -1,0 +1,3 @@
+:root{--ds-text-xs:.75rem;--ds-text-sm:.875rem;--ds-text-md:1rem;--ds-text-lg:1.125rem;--ds-text-xl:1.375rem;--ds-text-2xl:1.75rem}
+body{font-family:var(--ds-font-body);color:var(--ds-color-text);text-rendering:optimizeLegibility}
+h1,h2,h3,h4,h5,h6{font-family:var(--ds-font-display);color:var(--ds-color-text);letter-spacing:-.01em}

@@ -1,0 +1,15 @@
+:root {
+  --ds-color-brand-900:#1a2b4c; --ds-color-brand-800:#22385f; --ds-color-brand-700:#29466f;
+  --ds-color-primary:#1a2b4c; --ds-color-success:#2e7d32; --ds-color-success-soft:#e8f5e9;
+  --ds-color-warning:#b7791f; --ds-color-warning-soft:#fff8e1; --ds-color-danger:#c62828;
+  --ds-color-danger-soft:#ffebee; --ds-color-info:#1565c0; --ds-color-info-soft:#e3f2fd;
+  --ds-color-bg:#eef2f7; --ds-color-surface:#fff; --ds-color-surface-warm:#fffdf9;
+  --ds-color-border:#d9e0e8; --ds-color-border-strong:#c5cfdb; --ds-color-text:#1a2b4c;
+  --ds-color-muted:#64748b; --ds-color-on-brand:#fff;
+  --ds-space-1:.25rem; --ds-space-2:.5rem; --ds-space-3:.75rem; --ds-space-4:1rem;
+  --ds-space-5:1.25rem; --ds-space-6:1.5rem; --ds-space-8:2rem; --ds-space-10:2.5rem; --ds-space-12:3rem;
+  --ds-radius-sm:.5rem; --ds-radius-md:.75rem; --ds-radius-lg:1rem; --ds-radius-xl:1.25rem;
+  --ds-shadow-sm:0 1px 2px rgba(26,43,76,.05); --ds-shadow-md:0 8px 24px rgba(26,43,76,.08);
+  --ds-shadow-lg:0 16px 40px rgba(26,43,76,.10);
+  --ds-font-body:Tahoma,Arial,sans-serif; --ds-font-display:Tahoma,Arial,sans-serif;
+}

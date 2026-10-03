@@ -190,29 +190,28 @@ export async function GET(request: Request) {
       0
     );
 
-    return NextResponse.json({
-      success: true,
-      range,
-      startDate,
-      endDate,
-      summary: {
-        purchaseCount: purchases.length,
-        purchaseTotal,
-        paymentCount: payments.length,
-        paymentTotal,
-        balance: purchaseTotal - paymentTotal,
-      },
-      purchases,
-      payments,
-    });
-  } catch (error) {
     return NextResponse.json(
       {
-        success: false,
-        message: "خطا در دریافت گزارش",
-        error: error instanceof Error ? error.message : "خطای نامشخص",
+        success: true,
+        range,
+        startDate,
+        endDate,
+        summary: {
+          purchaseCount: purchases.length,
+          purchaseTotal,
+          paymentCount: payments.length,
+          paymentTotal,
+          balance: purchaseTotal - paymentTotal,
+        },
+        purchases,
+        payments,
       },
-      { status: 500 }
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
+  } catch {
+    return NextResponse.json(
+      { success: false, message: "خطا در دریافت گزارش" },
+      { status: 500, headers: { "Cache-Control": "private, no-store" } }
     );
   }
 }
