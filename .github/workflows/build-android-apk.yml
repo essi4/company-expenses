@@ -2,6 +2,9 @@ name: Build Android APK - Personal
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - apk/personal-android
 
 permissions:
   contents: read
