@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import { calculateMissionTotals, type MissionLocation, type MissionRow, type MissionStatus } from "../../lib/mission";
 
 type SignatureData = { name: string; image: string; signedAt: string };
-type SignatureMap = { preparer: SignatureData; approver: SignatureData; accountant: SignatureData };
+type SignatureMap = { preparer: SignatureData; approver: SignatureData; approval: SignatureData };
 
 type Draft = {
   company: string;
@@ -56,7 +56,7 @@ const defaultDraft: Draft = {
   status: "pending",
   month: "مرداد ۱۴۰۵",
   rows: initialRows,
-  signatures: { preparer: { name: "", image: "", signedAt: "" }, approver: { name: "", image: "", signedAt: "" }, accountant: { name: "", image: "", signedAt: "" } },
+  signatures: { preparer: { name: "", image: "", signedAt: "" }, approver: { name: "", image: "", signedAt: "" }, approval: { name: "", image: "", signedAt: "" } },
 };
 
 const money = (value: number) => new Intl.NumberFormat("fa-IR").format(value);
@@ -339,13 +339,15 @@ export default function MissionReportPage() {
           <section className="mt-10 border-t border-dashed pt-5">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h4 className="font-black">امضای تنظیم‌کننده</h4>
-                <p className="mt-1 text-xs text-slate-500">امضا را با انگشت روی موبایل رسم کنید.</p>
+                <h4 className="font-black">امضا و تأیید</h4>
+                <p className="mt-1 text-xs text-slate-500">فقط امضای تنظیم‌کننده فعلاً به‌صورت دیجیتال و قابل رسم با انگشت ثبت می‌شود.</p>
               </div>
-              {isEditing && <span className="text-xs font-bold text-amber-700">برای امضای حقوقی مبتنی بر گواهی دیجیتال، اتصال PKI در فاز بعدی انجام می‌شود.</span>}
+              {isEditing && <span className="text-xs font-bold text-amber-700">امضای تأییدکننده و تصویب در این مرحله به‌صورت جای امضا باقی می‌ماند.</span>}
             </div>
-            <div className="grid gap-8">
-              <SignaturePad label="تنظیم‌کننده — امضای شما" value={signatures.preparer} editing={isEditing} onChange={(patch) => updateSignature("preparer", patch)} onClear={() => clearSignature("preparer")} />
+            <div className="grid gap-5 md:grid-cols-3">
+              <SignaturePad label="تنظیم‌کننده" value={signatures.preparer} editing={isEditing} onChange={(patch) => updateSignature("preparer", patch)} onClear={() => clearSignature("preparer")} />
+              <SignaturePlaceholder label="تأییدکننده (مدیر پروژه / سرپرست)" />
+              <SignaturePlaceholder label="تصویب (مدیریت عامل / امور مالی)" />
             </div>
           </section>
 
@@ -380,6 +382,19 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
       <span className="label">{label}</span>
       <input value={value} onChange={(e) => onChange(e.target.value)} className="input" />
     </label>
+  );
+}
+
+function SignaturePlaceholder({ label }: { label: string }) {
+  return (
+    <div className="text-center text-sm">
+      <div className="font-bold">{label}</div>
+      <div className="mt-3 h-[130px] border-b border-slate-400">
+        <span className="text-xs text-slate-400">محل امضا</span>
+      </div>
+      <div className="mt-2 font-bold">نام و امضا: —</div>
+      <div className="text-[10px] text-slate-400">در انتظار تأیید</div>
+    </div>
   );
 }
 
