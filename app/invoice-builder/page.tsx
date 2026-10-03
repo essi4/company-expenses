@@ -23,6 +23,7 @@ type Draft = {
   received: string;
   status: InvoiceStatus;
   buyer: string;
+  note: string;
   rows: Row[];
   signature: SignatureData;
 };
@@ -63,6 +64,7 @@ const defaultDraft: Draft = {
   received: "۴۰۰۰۰۰۰",
   status: "review",
   buyer: "واحد / پروژه دریافت‌کننده",
+  note: "",
   rows: initialRows,
   signature: { image: "", name: "", signedAt: "" },
 };
@@ -75,6 +77,7 @@ export default function InvoiceBuilderPage() {
   const [received, setReceived] = useState(defaultDraft.received);
   const [status, setStatus] = useState<InvoiceStatus>(defaultDraft.status);
   const [buyer, setBuyer] = useState(defaultDraft.buyer);
+  const [note, setNote] = useState(defaultDraft.note);
   const [rows, setRows] = useState<Row[]>(defaultDraft.rows);
   const [signature, setSignature] = useState<SignatureData>(defaultDraft.signature);
   const [isEditing, setIsEditing] = useState(false);
@@ -97,9 +100,10 @@ export default function InvoiceBuilderPage() {
       setReceived(draft.received);
       setStatus(draft.status);
       setBuyer(draft.buyer);
+      setNote(draft.note ?? "");
       setRows(draft.rows);
       setSignature(draft.signature ?? defaultDraft.signature);
-      setSavedSnapshot({ ...draft, signature: draft.signature ?? defaultDraft.signature });
+      setSavedSnapshot({ ...draft, note: draft.note ?? "", signature: draft.signature ?? defaultDraft.signature });
       setHasLocalDraft(true);
       setMessage("پیش‌نویس ذخیره‌شده محلی بازیابی شد.");
     } catch {
@@ -115,6 +119,7 @@ export default function InvoiceBuilderPage() {
     received,
     status,
     buyer,
+    note,
     rows,
     signature,
   });
@@ -134,6 +139,7 @@ export default function InvoiceBuilderPage() {
     setReceived(draft.received);
     setStatus(draft.status);
     setBuyer(draft.buyer);
+    setNote(draft.note ?? "");
     setRows(draft.rows);
     setSignature(draft.signature ?? defaultDraft.signature);
     setIsEditing(false);
@@ -345,6 +351,10 @@ export default function InvoiceBuilderPage() {
               <span className="label">مبلغ دریافتی شرکت (تومان)</span>
               <input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" />
             </label>
+            <label className="block sm:col-span-2 lg:col-span-4">
+              <span className="label">توضیحات / یادداشت</span>
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} className="input min-h-20 resize-y" placeholder="اگر لازم است توضیح یا مورد دیگری به فاکتور اضافه شود، اینجا بنویسید." />
+            </label>
           </section>
         )}
 
@@ -367,6 +377,13 @@ export default function InvoiceBuilderPage() {
             <Summary label="جمع کل هزینه‌ها" value={money(total)} />
             <Summary label="مانده طلب تنخواه‌دار" value={money(balance)} highlight />
           </div>
+
+          {note.trim() && (
+            <section className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-black text-slate-700">توضیحات / یادداشت</div>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{note}</p>
+            </section>
+          )}
 
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-base font-black">ریز هزینه‌ها و خریدهای انجام‌شده</div>
