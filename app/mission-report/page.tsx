@@ -15,6 +15,7 @@ type Draft = {
   issuedAt: string;
   status: MissionStatus;
   month: string;
+  note: string;
   rows: MissionRow[];
   signatures: SignatureMap;
 };
@@ -55,6 +56,7 @@ const defaultDraft: Draft = {
   issuedAt: "۱۴۰۵/۰۶/۰۳",
   status: "pending",
   month: "مرداد ۱۴۰۵",
+  note: "",
   rows: initialRows,
   signatures: { preparer: { name: "", image: "", signedAt: "" }, approver: { name: "", image: "", signedAt: "" }, approval: { name: "", image: "", signedAt: "" } },
 };
@@ -69,6 +71,7 @@ export default function MissionReportPage() {
   const [issuedAt, setIssuedAt] = useState(defaultDraft.issuedAt);
   const [status, setStatus] = useState<MissionStatus>(defaultDraft.status);
   const [month, setMonth] = useState(defaultDraft.month);
+  const [note, setNote] = useState(defaultDraft.note);
   const [rows, setRows] = useState<MissionRow[]>(defaultDraft.rows);
   const [signatures, setSignatures] = useState<SignatureMap>(defaultDraft.signatures);
   const [isEditing, setIsEditing] = useState(false);
@@ -90,9 +93,10 @@ export default function MissionReportPage() {
       setIssuedAt(draft.issuedAt);
       setStatus(draft.status);
       setMonth(draft.month);
+      setNote(draft.note ?? "");
       setRows(draft.rows);
       setSignatures(draft.signatures ?? defaultDraft.signatures);
-      setSavedSnapshot({ ...draft, signatures: draft.signatures ?? defaultDraft.signatures });
+      setSavedSnapshot({ ...draft, note: draft.note ?? "", signatures: draft.signatures ?? defaultDraft.signatures });
       setHasLocalDraft(true);
       setMessage("پیش‌نویس ذخیره‌شده محلی بازیابی شد.");
     } catch {
@@ -100,7 +104,7 @@ export default function MissionReportPage() {
     }
   }, []);
 
-  const snapshot = (): Draft => ({ company, subtitle, documentNumber, issuedAt, status, month, rows, signatures });
+  const snapshot = (): Draft => ({ company, subtitle, documentNumber, issuedAt, status, month, note, rows, signatures });
 
   const startEditing = () => {
     setSavedSnapshot(snapshot());
@@ -116,6 +120,7 @@ export default function MissionReportPage() {
     setIssuedAt(draft.issuedAt);
     setStatus(draft.status);
     setMonth(draft.month);
+    setNote(draft.note ?? "");
     setRows(draft.rows);
     setSignatures(draft.signatures);
     setIsEditing(false);
@@ -244,6 +249,10 @@ export default function MissionReportPage() {
             <Field label="شماره سند" value={documentNumber} onChange={setDocumentNumber} />
             <Field label="تاریخ تنظیم" value={issuedAt} onChange={setIssuedAt} />
             <Field label="ماه کارکرد" value={month} onChange={setMonth} />
+            <label className="block sm:col-span-2 lg:col-span-4">
+              <span className="label">توضیحات / یادداشت</span>
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} className="input min-h-20 resize-y" placeholder="اگر لازم است توضیح یا مورد دیگری به گزارش مأموریت اضافه شود، اینجا بنویسید." />
+            </label>
             <label className="block">
               <span className="label">وضعیت</span>
               <select value={status} onChange={(e) => setStatus(e.target.value as MissionStatus)} className="input">
@@ -272,6 +281,13 @@ export default function MissionReportPage() {
             <h3 className="text-xl font-black">فرم گزارش اضافه‌کاری و مأموریت</h3>
             <p className="mt-1 text-sm text-slate-500">لیست کارکرد پرسنل — {month}</p>
           </div>
+
+          {note.trim() && (
+            <section className="mb-5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-sm font-black text-slate-700">توضیحات / یادداشت</div>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">{note}</p>
+            </section>
+          )}
 
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
