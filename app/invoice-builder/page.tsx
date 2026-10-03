@@ -50,12 +50,21 @@ export default function InvoiceBuilderPage() {
     { id: 9, date: "۱۴۰۵/۰۷/۱۰", description: "کاغذ A4", amount: "۱۱۰۰۰۰۰" },
   ]);
 
-  const total = useMemo(
-    () => rows.reduce((sum, row) => sum + Number(digits(row.amount).replace(/[,٬]/g, "") || 0), 0),
-    [rows]
-  );
-  const receivedValue = Number(digits(received).replace(/[,٬]/g, "") || 0);
-  const balance = Math.max(total - receivedValue, 0);
+  const invoiceEntries = useMemo<InvoiceEntry[]>(() => [
+    { id: "deposit-1", kind: "deposit", date: issueDate, description: "مبلغ دریافتی شرکت", amount: Number(digits(received).replace(/[,٬]/g, "") || 0) },
+    ...rows.map((row) => ({
+      id: String(row.id),
+      kind: "expense" as const,
+      date: row.date,
+      description: row.description,
+      amount: Number(digits(row.amount).replace(/[,٬]/g, "") || 0),
+    })),
+  ], [issueDate, received, rows]);
+
+  const totals = useMemo(() => calculateInvoiceTotals(invoiceEntries), [invoiceEntries]);
+  const receivedValue = totals.totalDeposit;
+  const total = totals.totalExpense;
+  const balance = totals.balance;
 
   const updateRow = (id: number, patch: Partial<Row>) =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
@@ -65,6 +74,11 @@ export default function InvoiceBuilderPage() {
 
   const removeRow = (id: number) =>
     setRows((current) => current.filter((row) => row.id !== id));
+
+  const generateNextDocumentNumber = () => {
+    const sequence = nextTemporarySequence(1405, "ASL");
+    setInvoiceNo(generateDocumentNumber(1405, sequence, "ASL"));
+  };
 
   const exportImage = async () => {
     if (!invoiceRef.current) return;
