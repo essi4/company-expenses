@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { getCompanyContext } from "@/lib/company";
 import { requireSameOrigin } from "@/lib/security";
+import { sniffImageType } from "@/lib/validate-image";
 
 export const runtime = "nodejs";
 
@@ -54,11 +55,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const contentType = file.type as (typeof TYPES)[number];
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const actualType = sniffImageType(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+
+    if (actualType !== file.type) {
+      return NextResponse.json(
+        { success: false, message: "محتوای فایل با فرمت اعلام‌شده سازگار نیست." },
+        { status: 415 }
+      );
+    }
+
+    const contentType = actualType;
     const extension = EXTENSIONS[contentType];
     const name = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${extension}`;
     const path = `company-${context.companyId}/invoices/${name}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error } = await context.supabase.storage
       .from(BUCKET_NAME)
