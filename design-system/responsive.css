@@ -1,22 +1,22 @@
 /* ============================================
    Invoice Card View — Mobile only
    - screen-only
-   - PDF export is excluded via body:not(.pdf-export)
+   - PDF export is excluded via body:not(.document-export)
    ============================================ */
 @media screen and (max-width: 640px) {
-  body:not(.pdf-export) .invoice-table thead {
+  body:not(.document-export) .invoice-table thead {
     display: none;
   }
 
-  body:not(.pdf-export) .invoice-table,
-  body:not(.pdf-export) .invoice-table tbody,
-  body:not(.pdf-export) .invoice-table tr,
-  body:not(.pdf-export) .invoice-table td {
+  body:not(.document-export) .invoice-table,
+  body:not(.document-export) .invoice-table tbody,
+  body:not(.document-export) .invoice-table tr,
+  body:not(.document-export) .invoice-table td {
     display: block;
     width: 100%;
   }
 
-  body:not(.pdf-export) .invoice-table tr {
+  body:not(.document-export) .invoice-table tr {
     border: 1px solid #e9ecef;
     border-radius: 10px;
     margin-bottom: 12px;
@@ -25,7 +25,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
 
-  body:not(.pdf-export) .invoice-table td {
+  body:not(.document-export) .invoice-table td {
     border: none;
     padding: 6px 0;
     display: flex;
@@ -35,14 +35,14 @@
     text-align: right;
   }
 
-  body:not(.pdf-export) .invoice-table td::before {
+  body:not(.document-export) .invoice-table td::before {
     content: attr(data-label);
     color: #1a2b4c;
     font-weight: bold;
     flex-shrink: 0;
   }
 
-  body:not(.pdf-export) .invoice-table td.actions {
+  body:not(.document-export) .invoice-table td.actions {
     justify-content: flex-end;
     gap: 8px;
     padding-top: 10px;
@@ -50,22 +50,85 @@
     margin-top: 6px;
   }
 
-  body:not(.pdf-export) .invoice-table td.actions::before {
+  body:not(.document-export) .invoice-table td.actions::before {
     content: none;
   }
 
-  body:not(.pdf-export) .invoice-table tr.total-row {
+  body:not(.document-export) .invoice-table tr.total-row {
     background: #eef2f7;
     border-color: #1a2b4c;
   }
 
-  body:not(.pdf-export) .invoice-table tr.total-row td::before {
+  body:not(.document-export) .invoice-table tr.total-row td::before {
     color: #1a2b4c;
   }
 
-  body:not(.pdf-export) .invoice-table tr.empty-row {
+  body:not(.document-export) .invoice-table tr.empty-row {
     border: none;
     box-shadow: none;
     background: transparent;
+  }
+}
+
+
+/* Mission report Card View — Mobile only */
+@media screen and (max-width: 640px) {
+  body:not(.document-export) .mission-table thead {
+    display: none;
+  }
+
+  body:not(.document-export) .mission-table,
+  body:not(.document-export) .mission-table tbody,
+  body:not(.document-export) .mission-table tr,
+  body:not(.document-export) .mission-table td {
+    display: block;
+    width: 100%;
+  }
+
+  body:not(.document-export) .mission-table tr {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  body:not(.document-export) .mission-table td {
+    border: none;
+    padding: 6px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    text-align: right;
+  }
+
+  body:not(.document-export) .mission-table td::before {
+    content: attr(data-label);
+    color: #1a2b4c;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  body:not(.document-export) .mission-table td.actions {
+    justify-content: flex-end;
+    padding-top: 10px;
+    margin-top: 6px;
+    border-top: 1px solid #eef2f7;
+  }
+
+  body:not(.document-export) .mission-table td.actions::before {
+    content: none;
+  }
+
+  body:not(.document-export) .mission-table td .space-y-2 {
+    width: 100%;
+  }
+
+  body:not(.document-export) .mission-table tr.mission-total-row {
+    background: #eef2f7;
+    border-color: #1a2b4c;
   }
 }
