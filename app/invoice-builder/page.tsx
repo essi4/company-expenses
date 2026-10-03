@@ -1,0 +1,194 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+type Row = {
+  id: number;
+  date: string;
+  description: string;
+  amount: string;
+};
+
+const money = (value: number) =>
+  new Intl.NumberFormat("fa-IR").format(Math.round(value || 0));
+
+const digits = (value: string) =>
+  value
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+
+const emptyRow = (id: number): Row => ({
+  id,
+  date: "۱۴۰۵/۰۷/۱۰",
+  description: "",
+  amount: "",
+});
+
+export default function InvoiceBuilderPage() {
+  const [company, setCompany] = useState("شرکت عرضه ساره لب رود");
+  const [title, setTitle] = useState("صورت‌حساب و فاکتور هزینه‌های اجرایی و تجهیزات");
+  const [invoiceNo, setInvoiceNo] = useState("ASL-1405-083");
+  const [issueDate, setIssueDate] = useState("۱۴۰۵/۰۷/۱۰");
+  const [received, setReceived] = useState("۴۰۰۰۰۰۰");
+  const [status, setStatus] = useState("در حال بررسی");
+  const [rows, setRows] = useState<Row[]>([
+    { id: 1, date: "۱۴۰۵/۰۶/۰۷", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
+    { id: 2, date: "۱۴۰۵/۰۶/۱۱", description: "ناهار سایت چاه ماهی", amount: "۱۱۶۰۰۰۰" },
+    { id: 3, date: "۱۴۰۵/۰۶/۱۶", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
+    { id: 4, date: "۱۴۰۵/۰۶/۱۷", description: "باطری قلم نوری", amount: "۲۵۰۰۰۰" },
+    { id: 5, date: "۱۴۰۵/۰۶/۲۶", description: "کاغذ A4", amount: "۱۰۰۰۰۰۰" },
+    { id: 6, date: "۱۴۰۵/۰۶/۳۱", description: "ناهار لایزنگان", amount: "۵۵۰۰۰۰" },
+    { id: 7, date: "۱۴۰۵/۰۶/۳۱", description: "پر کردن پیک‌نیک", amount: "۳۰۰۰۰۰" },
+    { id: 8, date: "۱۴۰۵/۰۷/۰۱", description: "خودرو ابراهیم رستگار", amount: "۲۰۰۰۰۰۰" },
+    { id: 9, date: "۱۴۰۵/۰۷/۱۰", description: "کاغذ A4", amount: "۱۱۰۰۰۰۰" },
+  ]);
+
+  const total = useMemo(
+    () => rows.reduce((sum, row) => sum + Number(digits(row.amount).replace(/[,٬]/g, "") || 0), 0),
+    [rows]
+  );
+  const receivedValue = Number(digits(received).replace(/[,٬]/g, "") || 0);
+  const balance = Math.max(total - receivedValue, 0);
+
+  const updateRow = (id: number, patch: Partial<Row>) =>
+    setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+
+  const addRow = () =>
+    setRows((current) => [...current, emptyRow(Math.max(0, ...current.map((row) => row.id)) + 1)]);
+
+  const removeRow = (id: number) =>
+    setRows((current) => current.filter((row) => row.id !== id));
+
+  return (
+    <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
+      <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
+          <div>
+            <p className="text-xs font-bold text-slate-500">مدیریت مالی شرکت</p>
+            <h1 className="text-2xl font-black">سازنده فاکتور</h1>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={addRow} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
+              ＋ ردیف هزینه
+            </button>
+            <button onClick={() => window.print()} className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white">
+              🖨 چاپ / ذخیره PDF
+            </button>
+          </div>
+        </div>
+
+        <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
+          <label className="block"><span className="label">نام شرکت</span><input value={company} onChange={(e) => setCompany(e.target.value)} className="input" /></label>
+          <label className="block"><span className="label">شماره سند</span><input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="input" /></label>
+          <label className="block"><span className="label">تاریخ صدور</span><input value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="input" /></label>
+          <label className="block"><span className="label">وضعیت</span><input value={status} onChange={(e) => setStatus(e.target.value)} className="input" /></label>
+          <label className="block sm:col-span-2 lg:col-span-4"><span className="label">عنوان فاکتور</span><input value={title} onChange={(e) => setTitle(e.target.value)} className="input" /></label>
+          <label className="block sm:col-span-2"><span className="label">مبلغ دریافتی شرکت (تومان)</span><input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" /></label>
+        </section>
+
+        <article className="invoice-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
+          <header className="flex flex-col gap-4 border-b-2 border-slate-900 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">{company}</h2>
+              <p className="mt-1 text-sm font-bold text-slate-600">{title}</p>
+            </div>
+            <div className="text-sm leading-7 text-slate-600 sm:text-left">
+              <div>شماره سند: <b className="text-slate-900">{invoiceNo}</b></div>
+              <div>تاریخ صدور: <b className="text-slate-900">{issueDate}</b></div>
+              <div>وضعیت: <b className="text-slate-900">{status}</b></div>
+            </div>
+          </header>
+
+          <div className="my-5 grid gap-3 sm:grid-cols-3">
+            <Summary label="مبلغ دریافتی شرکت" value={money(receivedValue)} />
+            <Summary label="جمع کل هزینه‌ها" value={money(total)} />
+            <Summary label="مانده طلب تنخواه‌دار" value={money(balance)} highlight />
+          </div>
+
+          <div className="mb-2 text-base font-black">ریز هزینه‌ها و خریدهای انجام‌شده</div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-slate-900 text-white">
+                  <th className="border p-2">ردیف</th>
+                  <th className="border p-2">تاریخ</th>
+                  <th className="border p-2 text-right">شرح کالا / هزینه</th>
+                  <th className="border p-2 text-left">مبلغ (تومان)</th>
+                  <th className="w-10 border p-2 print:hidden" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, index) => (
+                  <tr key={row.id}>
+                    <td className="border p-2 text-center">{(index + 1).toLocaleString("fa-IR")}</td>
+                    <td className="border p-1">
+                      <input value={row.date} onChange={(e) => updateRow(row.id, { date: e.target.value })} className="w-full bg-transparent p-1 text-center outline-none print:p-0" />
+                    </td>
+                    <td className="border p-1">
+                      <input value={row.description} onChange={(e) => updateRow(row.id, { description: e.target.value })} className="w-full bg-transparent p-1 outline-none print:p-0" placeholder="شرح هزینه" />
+                    </td>
+                    <td className="border p-1">
+                      <input inputMode="numeric" value={row.amount} onChange={(e) => updateRow(row.id, { amount: e.target.value })} className="w-full bg-transparent p-1 text-left outline-none print:p-0" />
+                    </td>
+                    <td className="border p-1 text-center print:hidden">
+                      <button onClick={() => removeRow(row.id)} className="font-bold text-red-600" aria-label="حذف ردیف">×</button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-slate-100 font-black">
+                  <td colSpan={3} className="border p-3">جمع کل هزینه‌ها</td>
+                  <td className="border p-3 text-left">{money(total)}</td>
+                  <td className="border print:hidden" />
+                </tr>
+                <tr className="bg-emerald-50 font-black text-emerald-800">
+                  <td colSpan={3} className="border border-emerald-200 p-3">مانده طلب تنخواه‌دار</td>
+                  <td className="border border-emerald-200 p-3 text-left">{money(balance)}</td>
+                  <td className="border border-emerald-200 print:hidden" />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-10 grid gap-10 border-t border-dashed pt-5 sm:grid-cols-2">
+            <Signature label="امضاء و تأییدکننده (مدیریت / امور مالی)" />
+            <Signature label="امضاء تحویل‌دهنده / تنخواه‌دار پروژه" />
+          </div>
+
+          <p className="mt-8 text-center text-xs text-slate-500">
+            این سند به‌صورت سیستمی توسط سامانه مالی شرکت صادر گردیده است.
+          </p>
+        </article>
+      </div>
+
+      <style jsx global>{`
+        .label { display:block; margin-bottom:.35rem; font-size:.75rem; font-weight:700; color:#475569; }
+        .input { width:100%; border-radius:.75rem; border:1px solid #e2e8f0; background:#fff; padding:.7rem .8rem; outline:none; }
+        @media print {
+          @page { size: A4; margin: 10mm; }
+          body { background:#fff !important; }
+          .invoice-paper { min-height: 270mm; }
+          input { border:0 !important; }
+        }
+      `}
+      </style>
+    </main>
+  );
+}
+
+function Summary({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-4 text-center ${highlight ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+      <div className="text-xs font-bold text-slate-500">{label} (تومان)</div>
+      <div className={`mt-1 text-xl font-black ${highlight ? "text-emerald-700" : "text-slate-900"}`}>{value}</div>
+    </div>
+  );
+}
+
+function Signature({ label }: { label: string }) {
+  return (
+    <div className="text-center text-sm font-bold">
+      <div>{label}</div>
+      <div className="mx-auto mt-12 w-4/5 border-t border-slate-400" />
+    </div>
+  );
+}
