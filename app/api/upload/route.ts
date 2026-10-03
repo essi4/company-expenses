@@ -56,7 +56,9 @@ export async function POST(request: Request) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const actualType = sniffImageType(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+    const actualType = sniffImageType(
+      buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+    );
 
     if (actualType !== file.type) {
       return NextResponse.json(
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const contentType = actualType;
+    const contentType = actualType as (typeof TYPES)[number];
     const extension = EXTENSIONS[contentType];
     const name = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${extension}`;
     const path = `company-${context.companyId}/invoices/${name}`;
