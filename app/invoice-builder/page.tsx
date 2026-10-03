@@ -13,6 +13,8 @@ type Row = {
   amount: string;
 };
 
+type SignatureData = { image: string; name: string; signedAt: string };
+
 type Draft = {
   company: string;
   title: string;
@@ -22,6 +24,7 @@ type Draft = {
   status: InvoiceStatus;
   buyer: string;
   rows: Row[];
+  signature: SignatureData;
 };
 
 const DRAFT_KEY = "company-expenses:invoice-builder:draft:v1";
@@ -61,6 +64,7 @@ const defaultDraft: Draft = {
   status: "review",
   buyer: "واحد / پروژه دریافت‌کننده",
   rows: initialRows,
+  signature: { image: "", name: "", signedAt: "" },
 };
 
 export default function InvoiceBuilderPage() {
@@ -72,6 +76,7 @@ export default function InvoiceBuilderPage() {
   const [status, setStatus] = useState<InvoiceStatus>(defaultDraft.status);
   const [buyer, setBuyer] = useState(defaultDraft.buyer);
   const [rows, setRows] = useState<Row[]>(defaultDraft.rows);
+  const [signature, setSignature] = useState<SignatureData>(defaultDraft.signature);
   const [isEditing, setIsEditing] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<Draft>(defaultDraft);
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
@@ -93,7 +98,8 @@ export default function InvoiceBuilderPage() {
       setStatus(draft.status);
       setBuyer(draft.buyer);
       setRows(draft.rows);
-      setSavedSnapshot(draft);
+      setSignature(draft.signature ?? defaultDraft.signature);
+      setSavedSnapshot({ ...draft, signature: draft.signature ?? defaultDraft.signature });
       setHasLocalDraft(true);
       setMessage("پیش‌نویس ذخیره‌شده محلی بازیابی شد.");
     } catch {
@@ -110,6 +116,7 @@ export default function InvoiceBuilderPage() {
     status,
     buyer,
     rows,
+    signature,
   });
 
   const startEditing = () => {
@@ -128,6 +135,7 @@ export default function InvoiceBuilderPage() {
     setStatus(draft.status);
     setBuyer(draft.buyer);
     setRows(draft.rows);
+    setSignature(draft.signature ?? defaultDraft.signature);
     setIsEditing(false);
     setMessage("تغییرات ذخیره‌نشده لغو شد.");
   };
@@ -140,6 +148,11 @@ export default function InvoiceBuilderPage() {
     setIsEditing(false);
     setMessage("فاکتور در این دستگاه ذخیره شد.");
   };
+
+  const updateSignature = (patch: Partial<SignatureData>) =>
+    setSignature((current) => ({ ...current, ...patch }));
+
+  const clearSignature = () => updateSignature({ image: "", signedAt: "" });
 
   const clearLocalDraft = () => {
     window.localStorage.removeItem(DRAFT_KEY);
@@ -425,9 +438,15 @@ export default function InvoiceBuilderPage() {
               <p className="mt-1 text-xs text-slate-500">تنظیم‌کننده فعلاً تنها جایگاه دارای امضای دیجیتال با انگشت است.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
-              <Signature label="تنظیم‌کننده" digital />
-              <Signature label="تأییدکننده (مدیر پروژه / سرپرست)" />
-              <Signature label="تصویب (مدیریت عامل / امور مالی)" />
+              <Signature
+                label="تنظیم‌کننده"
+                value={signature}
+                editing={isEditing}
+                onChange={updateSignature}
+                onClear={clearSignature}
+              />
+              <SignaturePlaceholder label="تأییدکننده (مدیر پروژه / سرپرست)" />
+              <SignaturePlaceholder label="تصویب (مدیریت عامل / امور مالی)" />
             </div>
           </section>
 
@@ -452,6 +471,116 @@ export default function InvoiceBuilderPage() {
     </main>
   );
 }
+
+function SignaturePlaceholder({ label }: { label: string }) {
+  return (
+    <div className="text-center text-sm">
+      <div className="font-bold">{label}</div>
+      <div className="mt-3 h-[130px] border-b border-slate-400">
+        <span className="text-xs text-slate-400">محل امضا</span>
+      </div>
+      <div className="mt-2 font-bold">نام و امضا: —</div>
+      <div className="text-[10px] text-slate-400">در انتظار تأیید</div>
+    </div>
+  );
+}
+
+function Signature({
+  label,
+  value,
+  editing,
+  onChange,
+  onClear,
+}: {
+  label: string;
+  value: SignatureData;
+  editing: boolean;
+  onChange: (patch: Partial<SignatureData>) => void;
+  onClear: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = Math.max(1, window.devicePixelRatio || 1);
+    const width = Math.max(280, canvas.clientWidth);
+    const height = 130;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f172a";
+    if (value.image) {
+      const image = new Image();
+      image.onload = () => ctx.drawImage(image, 0, 0, width, height);
+      image.src = value.image;
+    }
+  }, [editing]);
+
+  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const start = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!editing) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const p = point(event);
+    if (!ctx || !p) return;
+    canvas?.setPointerCapture(event.pointerId);
+    drawing.current = true;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  };
+
+  const move = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const ctx = canvasRef.current?.getContext("2d");
+    const p = point(event);
+    if (!ctx || !p) return;
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const finish = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onChange({ image: canvas.toDataURL("image/png"), signedAt: new Date().toLocaleString("fa-IR") });
+  };
+
+  return (
+    <div className="text-center text-sm">
+      <div className="font-bold">{label}</div>
+      {editing ? (
+        <>
+          <canvas ref={canvasRef} className="mt-3 h-[130px] w-full touch-none rounded-lg border border-dashed border-slate-300 bg-white" onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label={"محل رسم امضای " + label} />
+          <div className="mt-2 flex gap-2">
+            <input value={value.name} onChange={(e) => onChange({ name: e.target.value })} className="input" placeholder="نام امضاکننده" />
+            <button type="button" onClick={onClear} className="rounded-lg px-3 py-2 font-bold text-red-600 ring-1 ring-slate-200">پاک‌کردن</button>
+          </div>
+        </>
+      ) : (
+        <div className="mt-3 h-[130px] border-b border-slate-400">
+          {value.image ? <img src={value.image} alt={"امضای " + label} className="mx-auto h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">بدون امضا</span>}
+        </div>
+      )}
+      <div className="mt-2 font-bold">{value.name || "—"}</div>
+      {value.signedAt && <div className="text-[10px] text-slate-400">ثبت امضا: {value.signedAt}</div>}
+    </div>
+  );
+}
+
 
 function statusLabel(status: InvoiceStatus) {
   return { draft: "پیش‌نویس", review: "در حال بررسی", final: "نهایی", paid: "پرداخت‌شده" }[status];
