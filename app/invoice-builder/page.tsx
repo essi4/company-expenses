@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { toPng } from "html-to-image";
+import jsPDF from "jspdf";
 
 type Row = {
   id: number;
@@ -31,6 +33,8 @@ export default function InvoiceBuilderPage() {
   const [issueDate, setIssueDate] = useState("۱۴۰۵/۰۷/۱۰");
   const [received, setReceived] = useState("۴۰۰۰۰۰۰");
   const [status, setStatus] = useState("در حال بررسی");
+  const [exporting, setExporting] = useState(false);
+  const invoiceRef = useRef<HTMLElement>(null);
   const [rows, setRows] = useState<Row[]>([
     { id: 1, date: "۱۴۰۵/۰۶/۰۷", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
     { id: 2, date: "۱۴۰۵/۰۶/۱۱", description: "ناهار سایت چاه ماهی", amount: "۱۱۶۰۰۰۰" },
@@ -59,6 +63,44 @@ export default function InvoiceBuilderPage() {
   const removeRow = (id: number) =>
     setRows((current) => current.filter((row) => row.id !== id));
 
+  const exportImage = async () => {
+    if (!invoiceRef.current) return;
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(invoiceRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
+      const link = document.createElement("a");
+      link.download = `${invoiceNo || "invoice"}.png`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportPdf = async () => {
+    if (!invoiceRef.current) return;
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(invoiceRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 8;
+      const imageWidth = pageWidth - margin * 2;
+      const imageHeight = (invoiceRef.current.scrollHeight / invoiceRef.current.scrollWidth) * imageWidth;
+      const usableHeight = pageHeight - margin * 2;
+      let offset = 0;
+      while (offset < imageHeight) {
+        if (offset > 0) pdf.addPage();
+        pdf.addImage(dataUrl, "PNG", margin, margin - offset, imageWidth, imageHeight, undefined, "FAST");
+        offset += usableHeight;
+      }
+      pdf.save(`${invoiceNo || "invoice"}.pdf`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
@@ -68,6 +110,8 @@ export default function InvoiceBuilderPage() {
             <h1 className="text-2xl font-black">سازنده فاکتور</h1>
           </div>
           <div className="flex gap-2">
+            <button onClick={exportPdf} disabled={exporting} className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white disabled:opacity-50">{exporting ? "در حال آماده‌سازی…" : "📄 PDF"}</button>
+            <button onClick={exportImage} disabled={exporting} className="rounded-xl bg-sky-700 px-4 py-2 font-bold text-white disabled:opacity-50">🖼 تصویر</button>
             <button onClick={addRow} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
               ＋ ردیف هزینه
             </button>
@@ -86,7 +130,7 @@ export default function InvoiceBuilderPage() {
           <label className="block sm:col-span-2"><span className="label">مبلغ دریافتی شرکت (تومان)</span><input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" /></label>
         </section>
 
-        <article className="invoice-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
+        <article ref={invoiceRef} className="invoice-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
           <header className="flex flex-col gap-4 border-b-2 border-slate-900 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-black text-slate-900">{company}</h2>
