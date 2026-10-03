@@ -208,6 +208,7 @@ export default function InvoiceBuilderPage() {
   const exportImage = async () => {
     if (!invoiceRef.current || isEditing) return;
     setExporting(true);
+    document.body.classList.add("document-export");
     try {
       const dataUrl = await toPng(invoiceRef.current, {
         pixelRatio: 2,
@@ -219,6 +220,7 @@ export default function InvoiceBuilderPage() {
       link.href = dataUrl;
       link.click();
     } finally {
+      document.body.classList.remove("document-export");
       setExporting(false);
     }
   };
@@ -226,7 +228,7 @@ export default function InvoiceBuilderPage() {
   const exportPdf = async () => {
     if (!invoiceRef.current || isEditing) return;
     setExporting(true);
-    document.body.classList.add("pdf-export");
+    document.body.classList.add("document-export");
     try {
       const dataUrl = await toPng(invoiceRef.current, {
         pixelRatio: 2,
@@ -248,7 +250,7 @@ export default function InvoiceBuilderPage() {
       }
       pdf.save(`${invoiceNo || "invoice"}.pdf`);
     } finally {
-      document.body.classList.remove("pdf-export");
+      document.body.classList.remove("document-export");
       setExporting(false);
     }
   };
@@ -266,6 +268,9 @@ export default function InvoiceBuilderPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button onClick={() => (window.location.href = "/")} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
+              ← داشبورد
+            </button>
             {!isEditing ? (
               <button onClick={startEditing} className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-white">
                 ✏️ ویرایش فاکتور
