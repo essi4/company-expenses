@@ -417,10 +417,17 @@ export default function InvoiceBuilderPage() {
             </table>
           </div>
 
-          <div className="mt-10 grid gap-10 border-t border-dashed pt-5 sm:grid-cols-2">
-            <Signature label="امضاء و تأییدکننده (مدیریت / امور مالی)" />
-            <Signature label="امضاء تحویل‌دهنده / تنخواه‌دار پروژه" />
-          </div>
+          <section className="mt-10 border-t border-dashed pt-5">
+            <div className="mb-4">
+              <h4 className="font-black">امضا و تأیید</h4>
+              <p className="mt-1 text-xs text-slate-500">تنظیم‌کننده فعلاً تنها جایگاه دارای امضای دیجیتال با انگشت است.</p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              <Signature label="تنظیم‌کننده" digital />
+              <Signature label="تأییدکننده (مدیر پروژه / سرپرست)" />
+              <Signature label="تصویب (مدیریت عامل / امور مالی)" />
+            </div>
+          </section>
 
           <p className="mt-8 text-center text-xs text-slate-500">
             این سند به‌صورت سیستمی توسط سامانه مالی شرکت صادر گردیده است.
@@ -457,11 +464,12 @@ function Summary({ label, value, highlight = false }: { label: string; value: st
   );
 }
 
-function Signature({ label }: { label: string }) {
+function Signature({ label, digital = false }: { label: string; digital?: boolean }) {
   return (
     <div className="text-center text-sm font-bold">
       <div>{label}</div>
       <div className="mx-auto mt-12 w-4/5 border-t border-slate-400" />
+      <div className="mt-2 text-[10px] font-normal text-slate-400">{digital ? "محل امضای دیجیتال با انگشت" : "محل امضا"}</div>
     </div>
   );
 }
