@@ -361,7 +361,7 @@ export default function InvoiceBuilderPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
+            <table className="w-full border-collapse text-sm invoice-table">
               <thead>
                 <tr className="bg-slate-900 text-white">
                   <th className="border p-2">ردیف</th>
@@ -374,29 +374,29 @@ export default function InvoiceBuilderPage() {
               <tbody>
                 {rows.map((row, index) => (
                   <tr key={row.id}>
-                    <td className="border p-2 text-center">{(index + 1).toLocaleString("fa-IR")}</td>
-                    <td className="border p-1">
+                    <td data-label="ردیف" className="border p-2 text-center">{(index + 1).toLocaleString("fa-IR")}</td>
+                    <td data-label="تاریخ" className="border p-1">
                       {isEditing ? (
                         <input value={row.date} onChange={(e) => updateRow(row.id, { date: e.target.value })} className="w-full bg-transparent p-1 text-center outline-none" />
                       ) : (
                         <span className="block p-1 text-center">{row.date}</span>
                       )}
                     </td>
-                    <td className="border p-1">
+                    <td data-label="شرح" className="border p-1">
                       {isEditing ? (
                         <input value={row.description} onChange={(e) => updateRow(row.id, { description: e.target.value })} className="w-full bg-transparent p-1 outline-none" placeholder="شرح هزینه" />
                       ) : (
                         <span className="block p-1">{row.description || "—"}</span>
                       )}
                     </td>
-                    <td className="border p-1">
+                    <td data-label="مبلغ" className="border p-1">
                       {isEditing ? (
                         <input inputMode="numeric" value={row.amount} onChange={(e) => updateRow(row.id, { amount: e.target.value })} className="w-full bg-transparent p-1 text-left outline-none" />
                       ) : (
                         <span className="block p-1 text-left">{money(Number(digits(row.amount).replace(/[,٬]/g, "") || 0))}</span>
                       )}
                     </td>
-                    <td className="border p-1 text-center print:hidden">
+                    <td className="actions border p-1 text-center print:hidden">
                       {isEditing && (
                         <button onClick={() => removeRow(row.id)} className="font-bold text-red-600" aria-label="حذف ردیف">
                           ×
@@ -405,7 +405,7 @@ export default function InvoiceBuilderPage() {
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-slate-100 font-black">
+                <tr className="total-row bg-slate-100 font-black">
                   <td colSpan={3} className="border p-3">جمع کل هزینه‌ها</td>
                   <td className="border p-3 text-left">{money(total)}</td>
                   <td className="border print:hidden" />

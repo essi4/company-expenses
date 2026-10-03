@@ -1,0 +1,71 @@
+/* ============================================
+   Invoice Card View — Mobile only
+   - screen-only
+   - PDF export is excluded via body:not(.pdf-export)
+   ============================================ */
+@media screen and (max-width: 640px) {
+  body:not(.pdf-export) .invoice-table thead {
+    display: none;
+  }
+
+  body:not(.pdf-export) .invoice-table,
+  body:not(.pdf-export) .invoice-table tbody,
+  body:not(.pdf-export) .invoice-table tr,
+  body:not(.pdf-export) .invoice-table td {
+    display: block;
+    width: 100%;
+  }
+
+  body:not(.pdf-export) .invoice-table tr {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  body:not(.pdf-export) .invoice-table td {
+    border: none;
+    padding: 6px 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13.5px;
+    text-align: right;
+  }
+
+  body:not(.pdf-export) .invoice-table td::before {
+    content: attr(data-label);
+    color: #1a2b4c;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  body:not(.pdf-export) .invoice-table td.actions {
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f7;
+    margin-top: 6px;
+  }
+
+  body:not(.pdf-export) .invoice-table td.actions::before {
+    content: none;
+  }
+
+  body:not(.pdf-export) .invoice-table tr.total-row {
+    background: #eef2f7;
+    border-color: #1a2b4c;
+  }
+
+  body:not(.pdf-export) .invoice-table tr.total-row td::before {
+    color: #1a2b4c;
+  }
+
+  body:not(.pdf-export) .invoice-table tr.empty-row {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+}

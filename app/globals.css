@@ -2,6 +2,7 @@
 @import "../design-system/typography.css";
 @import "../design-system/components.css";
 @import "../design-system/print.css";
+@import "../design-system/responsive.css";
 
 @tailwind base;
 @tailwind components;
