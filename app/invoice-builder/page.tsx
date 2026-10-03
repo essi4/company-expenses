@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
+import { calculateInvoiceTotals, type InvoiceEntry, type InvoiceStatus } from "../../lib/invoice";
+import { generateDocumentNumber, nextTemporarySequence } from "../../lib/document-number";
 
 type Row = {
   id: number;
@@ -32,7 +34,8 @@ export default function InvoiceBuilderPage() {
   const [invoiceNo, setInvoiceNo] = useState("ASL-1405-083");
   const [issueDate, setIssueDate] = useState("۱۴۰۵/۰۷/۱۰");
   const [received, setReceived] = useState("۴۰۰۰۰۰۰");
-  const [status, setStatus] = useState("در حال بررسی");
+  const [status, setStatus] = useState<InvoiceStatus>("review");
+  const [buyer, setBuyer] = useState("واحد / پروژه دریافت‌کننده");
   const [exporting, setExporting] = useState(false);
   const invoiceRef = useRef<HTMLElement>(null);
   const [rows, setRows] = useState<Row[]>([
@@ -123,23 +126,23 @@ export default function InvoiceBuilderPage() {
 
         <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
           <label className="block"><span className="label">نام شرکت</span><input value={company} onChange={(e) => setCompany(e.target.value)} className="input" /></label>
-          <label className="block"><span className="label">شماره سند</span><input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="input" /></label>
+          <label className="block"><span className="label">شماره سند</span><div className="flex gap-2"><input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="input" /><button type="button" onClick={generateNextDocumentNumber} className="shrink-0 rounded-xl bg-slate-900 px-3 text-xs font-bold text-white">شماره جدید</button></div></label>
           <label className="block"><span className="label">تاریخ صدور</span><input value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="input" /></label>
           <label className="block"><span className="label">وضعیت</span><input value={status} onChange={(e) => setStatus(e.target.value)} className="input" /></label>
           <label className="block sm:col-span-2 lg:col-span-4"><span className="label">عنوان فاکتور</span><input value={title} onChange={(e) => setTitle(e.target.value)} className="input" /></label>
-          <label className="block sm:col-span-2"><span className="label">مبلغ دریافتی شرکت (تومان)</span><input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" /></label>
+          <label className="block"><span className="label">دریافت‌کننده / پروژه</span><input value={buyer} onChange={(e) => setBuyer(e.target.value)} className="input" /></label><label className="block sm:col-span-2"><span className="label">مبلغ دریافتی شرکت (تومان)</span><input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" /></label>
         </section>
 
         <article ref={invoiceRef} className="invoice-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
           <header className="flex flex-col gap-4 border-b-2 border-slate-900 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-black text-slate-900">{company}</h2>
-              <p className="mt-1 text-sm font-bold text-slate-600">{title}</p>
+              <p className="mt-1 text-sm font-bold text-slate-600">{title}</p><p className="mt-1 text-xs text-slate-500">دریافت‌کننده: {buyer}</p>
             </div>
             <div className="text-sm leading-7 text-slate-600 sm:text-left">
               <div>شماره سند: <b className="text-slate-900">{invoiceNo}</b></div>
               <div>تاریخ صدور: <b className="text-slate-900">{issueDate}</b></div>
-              <div>وضعیت: <b className="text-slate-900">{status}</b></div>
+              <div>وضعیت: <b className="text-slate-900">{statusLabel(status)}</b></div>
             </div>
           </header>
 
@@ -217,6 +220,10 @@ export default function InvoiceBuilderPage() {
       </style>
     </main>
   );
+}
+
+function statusLabel(status: InvoiceStatus) {
+  return { draft: "پیش‌نویس", review: "در حال بررسی", final: "نهایی", paid: "پرداخت‌شده" }[status];
 }
 
 function Summary({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
