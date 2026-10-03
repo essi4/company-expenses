@@ -39,8 +39,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 input, select, textarea { transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
 input:focus, select:focus, textarea:focus {
-  border-color: #94a3b8;
-  box-shadow: 0 0 0 4px rgba(148, 163, 184, .12);
+  border-color: var(--ds-color-primary);
+  box-shadow: 0 0 0 4px rgba(26, 43, 76, .10);
   outline: none;
 }
 img { max-width: 100%; }
@@ -48,15 +48,15 @@ img { max-width: 100%; }
 @layer components {
   .input {
     width: 100%;
-    border: 1px solid var(--border);
-    border-radius: .9rem;
-    background: var(--surface);
+    border: 1px solid var(--ds-color-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-surface);
     padding: .75rem .9rem;
-    color: var(--foreground);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+    color: var(--ds-color-text);
+    box-shadow: var(--ds-shadow-sm);
   }
-  .input::placeholder { color: #94a3b8; }
-  .input:hover { border-color: #cbd5e1; }
+  .input::placeholder { color: var(--ds-color-muted); }
+  .input:hover { border-color: var(--ds-color-border-strong); }
 }
 
 /* Clean scrollbar for desktop */
