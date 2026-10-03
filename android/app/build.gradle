@@ -1,0 +1,28 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.essi4.companyexpenses.personal"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.essi4.companyexpenses.personal"
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName "1.0.0"
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+android {
+    buildFeatures {
+        buildConfig = false
+    }
+}
