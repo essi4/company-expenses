@@ -189,6 +189,7 @@ export default function MissionReportPage() {
   const exportPdf = async () => {
     if (!reportRef.current || isEditing) return;
     setExporting(true);
+    document.body.classList.add("pdf-export");
     try {
       const dataUrl = await toPng(reportRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -206,6 +207,7 @@ export default function MissionReportPage() {
       }
       pdf.save(`${documentNumber || "mission-report"}.pdf`);
     } finally {
+      document.body.classList.remove("pdf-export");
       setExporting(false);
     }
   };
