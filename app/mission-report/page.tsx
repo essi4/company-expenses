@@ -5,6 +5,9 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateMissionTotals, type MissionLocation, type MissionRow, type MissionStatus } from "../../lib/mission";
 
+type SignatureData = { name: string; image: string; signedAt: string };
+type SignatureMap = { preparer: SignatureData; approver: SignatureData; accountant: SignatureData };
+
 type Draft = {
   company: string;
   subtitle: string;
@@ -13,6 +16,7 @@ type Draft = {
   status: MissionStatus;
   month: string;
   rows: MissionRow[];
+  signatures: SignatureMap;
 };
 
 const DRAFT_KEY = "company-expenses:mission-report:draft:v1";
@@ -52,6 +56,7 @@ const defaultDraft: Draft = {
   status: "pending",
   month: "مرداد ۱۴۰۵",
   rows: initialRows,
+  signatures: { preparer: { name: "", image: "", signedAt: "" }, approver: { name: "", image: "", signedAt: "" }, accountant: { name: "", image: "", signedAt: "" } },
 };
 
 const money = (value: number) => new Intl.NumberFormat("fa-IR").format(value);
@@ -65,6 +70,7 @@ export default function MissionReportPage() {
   const [status, setStatus] = useState<MissionStatus>(defaultDraft.status);
   const [month, setMonth] = useState(defaultDraft.month);
   const [rows, setRows] = useState<MissionRow[]>(defaultDraft.rows);
+  const [signatures, setSignatures] = useState<SignatureMap>(defaultDraft.signatures);
   const [isEditing, setIsEditing] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<Draft>(defaultDraft);
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
@@ -85,7 +91,8 @@ export default function MissionReportPage() {
       setStatus(draft.status);
       setMonth(draft.month);
       setRows(draft.rows);
-      setSavedSnapshot(draft);
+      setSignatures(draft.signatures ?? defaultDraft.signatures);
+      setSavedSnapshot({ ...draft, signatures: draft.signatures ?? defaultDraft.signatures });
       setHasLocalDraft(true);
       setMessage("پیش‌نویس ذخیره‌شده محلی بازیابی شد.");
     } catch {
@@ -93,7 +100,7 @@ export default function MissionReportPage() {
     }
   }, []);
 
-  const snapshot = (): Draft => ({ company, subtitle, documentNumber, issuedAt, status, month, rows });
+  const snapshot = (): Draft => ({ company, subtitle, documentNumber, issuedAt, status, month, rows, signatures });
 
   const startEditing = () => {
     setSavedSnapshot(snapshot());
@@ -110,6 +117,7 @@ export default function MissionReportPage() {
     setStatus(draft.status);
     setMonth(draft.month);
     setRows(draft.rows);
+    setSignatures(draft.signatures);
     setIsEditing(false);
     setMessage("تغییرات ذخیره‌نشده لغو شد.");
   };
@@ -157,6 +165,12 @@ export default function MissionReportPage() {
   };
 
   const removeRow = (id: number) => setRows((current) => current.filter((row) => row.id !== id));
+
+  const updateSignature = (key: keyof SignatureMap, patch: Partial<SignatureData>) => {
+    setSignatures((current) => ({ ...current, [key]: { ...current[key], ...patch } }));
+  };
+
+  const clearSignature = (key: keyof SignatureMap) => updateSignature(key, { image: "", signedAt: "" });
 
   const exportImage = async () => {
     if (!reportRef.current || isEditing) return;
@@ -322,11 +336,20 @@ export default function MissionReportPage() {
             </table>
           </div>
 
-          <div className="mt-10 grid gap-8 border-t border-dashed pt-5 sm:grid-cols-3">
-            <Signature label="تنظیم‌کننده" />
-            <Signature label="تأییدکننده (مدیر پروژه / سرپرست)" />
-            <Signature label="تصویب (مدیریت عامل / امور مالی)" />
-          </div>
+          <section className="mt-10 border-t border-dashed pt-5">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h4 className="font-black">امضای الکترونیکی</h4>
+                <p className="mt-1 text-xs text-slate-500">امضای ثبت‌شده در این فاز به‌صورت تصویر امضا در سند ذخیره می‌شود.</p>
+              </div>
+              {isEditing && <span className="text-xs font-bold text-amber-700">برای امضای حقوقی مبتنی بر گواهی دیجیتال، اتصال PKI در فاز بعدی انجام می‌شود.</span>}
+            </div>
+            <div className="grid gap-8 sm:grid-cols-3">
+              <SignaturePad label="تنظیم‌کننده" value={signatures.preparer} editing={isEditing} onChange={(patch) => updateSignature("preparer", patch)} onClear={() => clearSignature("preparer")} />
+              <SignaturePad label="تأییدکننده (مدیر پروژه / سرپرست)" value={signatures.approver} editing={isEditing} onChange={(patch) => updateSignature("approver", patch)} onClear={() => clearSignature("approver")} />
+              <SignaturePad label="تصویب (مدیریت عامل / امور مالی)" value={signatures.accountant} editing={isEditing} onChange={(patch) => updateSignature("accountant", patch)} onClear={() => clearSignature("accountant")} />
+            </div>
+          </section>
 
           <p className="mt-8 text-center text-xs text-slate-500">این سند به‌صورت سیستمی توسط سامانه مالی شرکت صادر گردیده است.</p>
         </article>
@@ -336,6 +359,7 @@ export default function MissionReportPage() {
         .label { display:block; margin-bottom:.35rem; font-size:.75rem; font-weight:700; color:#475569; }
         .input { width:100%; border-radius:.75rem; border:1px solid #e2e8f0; background:#fff; padding:.7rem .8rem; outline:none; }
         .input:focus { border-color:#0f766e; box-shadow:0 0 0 3px rgba(15,118,110,.1); }
+        canvas { touch-action: none; }
         @media print {
           @page { size: A4; margin: 10mm; }
           body { background:#fff !important; }
@@ -361,11 +385,98 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   );
 }
 
-function Signature({ label }: { label: string }) {
+function SignaturePad({
+  label,
+  value,
+  editing,
+  onChange,
+  onClear,
+}: {
+  label: string;
+  value: SignatureData;
+  editing: boolean;
+  onChange: (patch: Partial<SignatureData>) => void;
+  onClear: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = Math.max(1, window.devicePixelRatio || 1);
+    const width = Math.max(280, canvas.clientWidth);
+    const height = 130;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0f172a";
+    if (value.image) {
+      const image = new Image();
+      image.onload = () => ctx.drawImage(image, 0, 0, width, height);
+      image.src = value.image;
+    }
+  }, [editing]);
+
+  const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const start = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!editing) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const p = point(event);
+    if (!ctx || !p) return;
+    canvas?.setPointerCapture(event.pointerId);
+    drawing.current = true;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  };
+
+  const move = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const ctx = canvasRef.current?.getContext("2d");
+    const p = point(event);
+    if (!ctx || !p) return;
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  };
+
+  const finish = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onChange({ image: canvas.toDataURL("image/png"), signedAt: new Date().toLocaleString("fa-IR") });
+  };
+
   return (
-    <div className="text-center text-sm font-bold">
-      <div>{label}</div>
-      <div className="mx-auto mt-12 w-4/5 border-t border-slate-400" />
+    <div className="text-center text-sm">
+      <div className="font-bold">{label}</div>
+      {editing ? (
+        <>
+          <canvas ref={canvasRef} className="mt-3 h-[130px] w-full touch-none rounded-lg border border-dashed border-slate-300 bg-white" onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label={"محل رسم امضای " + label} />
+          <div className="mt-2 flex gap-2">
+            <input value={value.name} onChange={(e) => onChange({ name: e.target.value })} className="input" placeholder="نام امضاکننده" />
+            <button type="button" onClick={onClear} className="rounded-lg px-3 py-2 font-bold text-red-600 ring-1 ring-slate-200">پاک‌کردن</button>
+          </div>
+        </>
+      ) : (
+        <div className="mt-3 h-[130px] border-b border-slate-400">
+          {value.image ? <img src={value.image} alt={"امضای " + label} className="mx-auto h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">بدون امضا</span>}
+        </div>
+      )}
+      <div className="mt-2 font-bold">{value.name || "—"}</div>
+      {value.signedAt && <div className="text-[10px] text-slate-400">ثبت امضا: {value.signedAt}</div>}
     </div>
   );
 }
