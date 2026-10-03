@@ -339,15 +339,13 @@ export default function MissionReportPage() {
           <section className="mt-10 border-t border-dashed pt-5">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h4 className="font-black">امضای الکترونیکی</h4>
-                <p className="mt-1 text-xs text-slate-500">امضای ثبت‌شده در این فاز به‌صورت تصویر امضا در سند ذخیره می‌شود.</p>
+                <h4 className="font-black">امضای تنظیم‌کننده</h4>
+                <p className="mt-1 text-xs text-slate-500">امضا را با انگشت روی موبایل رسم کنید.</p>
               </div>
               {isEditing && <span className="text-xs font-bold text-amber-700">برای امضای حقوقی مبتنی بر گواهی دیجیتال، اتصال PKI در فاز بعدی انجام می‌شود.</span>}
             </div>
-            <div className="grid gap-8 sm:grid-cols-3">
-              <SignaturePad label="تنظیم‌کننده" value={signatures.preparer} editing={isEditing} onChange={(patch) => updateSignature("preparer", patch)} onClear={() => clearSignature("preparer")} />
-              <SignaturePad label="تأییدکننده (مدیر پروژه / سرپرست)" value={signatures.approver} editing={isEditing} onChange={(patch) => updateSignature("approver", patch)} onClear={() => clearSignature("approver")} />
-              <SignaturePad label="تصویب (مدیریت عامل / امور مالی)" value={signatures.accountant} editing={isEditing} onChange={(patch) => updateSignature("accountant", patch)} onClear={() => clearSignature("accountant")} />
+            <div className="grid gap-8">
+              <SignaturePad label="تنظیم‌کننده — امضای شما" value={signatures.preparer} editing={isEditing} onChange={(patch) => updateSignature("preparer", patch)} onClear={() => clearSignature("preparer")} />
             </div>
           </section>
 
