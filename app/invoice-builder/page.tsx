@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateInvoiceTotals, type InvoiceEntry, type InvoiceStatus } from "../../lib/invoice";
@@ -13,8 +13,20 @@ type Row = {
   amount: string;
 };
 
-const money = (value: number) =>
-  new Intl.NumberFormat("fa-IR").format(Math.round(value || 0));
+type Draft = {
+  company: string;
+  title: string;
+  invoiceNo: string;
+  issueDate: string;
+  received: string;
+  status: InvoiceStatus;
+  buyer: string;
+  rows: Row[];
+};
+
+const DRAFT_KEY = "company-expenses:invoice-builder:draft:v1";
+
+const money = (value: number) => new Intl.NumberFormat("fa-IR").format(Math.round(value || 0));
 
 const digits = (value: string) =>
   value
@@ -28,38 +40,132 @@ const emptyRow = (id: number): Row => ({
   amount: "",
 });
 
+const initialRows: Row[] = [
+  { id: 1, date: "۱۴۰۵/۰۶/۰۷", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
+  { id: 2, date: "۱۴۰۵/۰۶/۱۱", description: "ناهار سایت چاه ماهی", amount: "۱۱۶۰۰۰۰" },
+  { id: 3, date: "۱۴۰۵/۰۶/۱۶", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
+  { id: 4, date: "۱۴۰۵/۰۶/۱۷", description: "باطری قلم نوری", amount: "۲۵۰۰۰۰" },
+  { id: 5, date: "۱۴۰۵/۰۶/۲۶", description: "کاغذ A4", amount: "۱۰۰۰۰۰۰" },
+  { id: 6, date: "۱۴۰۵/۰۶/۳۱", description: "ناهار لایزنگان", amount: "۵۵۰۰۰۰" },
+  { id: 7, date: "۱۴۰۵/۰۶/۳۱", description: "پر کردن پیک‌نیک", amount: "۳۰۰۰۰۰" },
+  { id: 8, date: "۱۴۰۵/۰۷/۰۱", description: "خودرو ابراهیم رستگار", amount: "۲۰۰۰۰۰۰" },
+  { id: 9, date: "۱۴۰۵/۰۷/۱۰", description: "کاغذ A4", amount: "۱۱۰۰۰۰۰" },
+];
+
+const defaultDraft: Draft = {
+  company: "شرکت عرضه ساره لب رود",
+  title: "صورت‌حساب و فاکتور هزینه‌های اجرایی و تجهیزات",
+  invoiceNo: "ASL-1405-083",
+  issueDate: "۱۴۰۵/۰۷/۱۰",
+  received: "۴۰۰۰۰۰۰",
+  status: "review",
+  buyer: "واحد / پروژه دریافت‌کننده",
+  rows: initialRows,
+};
+
 export default function InvoiceBuilderPage() {
-  const [company, setCompany] = useState("شرکت عرضه ساره لب رود");
-  const [title, setTitle] = useState("صورت‌حساب و فاکتور هزینه‌های اجرایی و تجهیزات");
-  const [invoiceNo, setInvoiceNo] = useState("ASL-1405-083");
-  const [issueDate, setIssueDate] = useState("۱۴۰۵/۰۷/۱۰");
-  const [received, setReceived] = useState("۴۰۰۰۰۰۰");
-  const [status, setStatus] = useState<InvoiceStatus>("review");
-  const [buyer, setBuyer] = useState("واحد / پروژه دریافت‌کننده");
+  const [company, setCompany] = useState(defaultDraft.company);
+  const [title, setTitle] = useState(defaultDraft.title);
+  const [invoiceNo, setInvoiceNo] = useState(defaultDraft.invoiceNo);
+  const [issueDate, setIssueDate] = useState(defaultDraft.issueDate);
+  const [received, setReceived] = useState(defaultDraft.received);
+  const [status, setStatus] = useState<InvoiceStatus>(defaultDraft.status);
+  const [buyer, setBuyer] = useState(defaultDraft.buyer);
+  const [rows, setRows] = useState<Row[]>(defaultDraft.rows);
+  const [isEditing, setIsEditing] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState<Draft>(defaultDraft);
+  const [hasLocalDraft, setHasLocalDraft] = useState(false);
+  const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState(false);
   const invoiceRef = useRef<HTMLElement>(null);
-  const [rows, setRows] = useState<Row[]>([
-    { id: 1, date: "۱۴۰۵/۰۶/۰۷", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
-    { id: 2, date: "۱۴۰۵/۰۶/۱۱", description: "ناهار سایت چاه ماهی", amount: "۱۱۶۰۰۰۰" },
-    { id: 3, date: "۱۴۰۵/۰۶/۱۶", description: "ناهار تل بارگاه", amount: "۷۰۰۰۰۰" },
-    { id: 4, date: "۱۴۰۵/۰۶/۱۷", description: "باطری قلم نوری", amount: "۲۵۰۰۰۰" },
-    { id: 5, date: "۱۴۰۵/۰۶/۲۶", description: "کاغذ A4", amount: "۱۰۰۰۰۰۰" },
-    { id: 6, date: "۱۴۰۵/۰۶/۳۱", description: "ناهار لایزنگان", amount: "۵۵۰۰۰۰" },
-    { id: 7, date: "۱۴۰۵/۰۶/۳۱", description: "پر کردن پیک‌نیک", amount: "۳۰۰۰۰۰" },
-    { id: 8, date: "۱۴۰۵/۰۷/۰۱", description: "خودرو ابراهیم رستگار", amount: "۲۰۰۰۰۰۰" },
-    { id: 9, date: "۱۴۰۵/۰۷/۱۰", description: "کاغذ A4", amount: "۱۱۰۰۰۰۰" },
-  ]);
 
-  const invoiceEntries = useMemo<InvoiceEntry[]>(() => [
-    { id: "deposit-1", kind: "deposit", date: issueDate, description: "مبلغ دریافتی شرکت", amount: Number(digits(received).replace(/[,٬]/g, "") || 0) },
-    ...rows.map((row) => ({
-      id: String(row.id),
-      kind: "expense" as const,
-      date: row.date,
-      description: row.description,
-      amount: Number(digits(row.amount).replace(/[,٬]/g, "") || 0),
-    })),
-  ], [issueDate, received, rows]);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Draft;
+      if (!draft || !Array.isArray(draft.rows)) return;
+      setCompany(draft.company);
+      setTitle(draft.title);
+      setInvoiceNo(draft.invoiceNo);
+      setIssueDate(draft.issueDate);
+      setReceived(draft.received);
+      setStatus(draft.status);
+      setBuyer(draft.buyer);
+      setRows(draft.rows);
+      setSavedSnapshot(draft);
+      setHasLocalDraft(true);
+      setMessage("پیش‌نویس ذخیره‌شده محلی بازیابی شد.");
+    } catch {
+      window.localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  const snapshot = (): Draft => ({
+    company,
+    title,
+    invoiceNo,
+    issueDate,
+    received,
+    status,
+    buyer,
+    rows,
+  });
+
+  const startEditing = () => {
+    setSavedSnapshot(snapshot());
+    setIsEditing(true);
+    setMessage("");
+  };
+
+  const cancelEditing = () => {
+    const draft = savedSnapshot;
+    setCompany(draft.company);
+    setTitle(draft.title);
+    setInvoiceNo(draft.invoiceNo);
+    setIssueDate(draft.issueDate);
+    setReceived(draft.received);
+    setStatus(draft.status);
+    setBuyer(draft.buyer);
+    setRows(draft.rows);
+    setIsEditing(false);
+    setMessage("تغییرات ذخیره‌نشده لغو شد.");
+  };
+
+  const saveDraft = () => {
+    const draft = snapshot();
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    setSavedSnapshot(draft);
+    setHasLocalDraft(true);
+    setIsEditing(false);
+    setMessage("فاکتور در این دستگاه ذخیره شد.");
+  };
+
+  const clearLocalDraft = () => {
+    window.localStorage.removeItem(DRAFT_KEY);
+    setHasLocalDraft(false);
+    setMessage("پیش‌نویس محلی پاک شد؛ اطلاعات فعلی صفحه حفظ شده است.");
+  };
+
+  const invoiceEntries = useMemo<InvoiceEntry[]>(
+    () => [
+      {
+        id: "deposit-1",
+        kind: "deposit",
+        date: issueDate,
+        description: "مبلغ دریافتی شرکت",
+        amount: Number(digits(received).replace(/[,٬]/g, "") || 0),
+      },
+      ...rows.map((row) => ({
+        id: String(row.id),
+        kind: "expense" as const,
+        date: row.date,
+        description: row.description,
+        amount: Number(digits(row.amount).replace(/[,٬]/g, "") || 0),
+      })),
+    ],
+    [issueDate, received, rows],
+  );
 
   const totals = useMemo(() => calculateInvoiceTotals(invoiceEntries), [invoiceEntries]);
   const receivedValue = totals.totalDeposit;
@@ -72,19 +178,23 @@ export default function InvoiceBuilderPage() {
   const addRow = () =>
     setRows((current) => [...current, emptyRow(Math.max(0, ...current.map((row) => row.id)) + 1)]);
 
-  const removeRow = (id: number) =>
-    setRows((current) => current.filter((row) => row.id !== id));
+  const removeRow = (id: number) => setRows((current) => current.filter((row) => row.id !== id));
 
   const generateNextDocumentNumber = () => {
     const sequence = nextTemporarySequence(1405, "ASL");
     setInvoiceNo(generateDocumentNumber(1405, sequence, "ASL"));
+    setMessage("شماره موقت جدید تولید شد.");
   };
 
   const exportImage = async () => {
-    if (!invoiceRef.current) return;
+    if (!invoiceRef.current || isEditing) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(invoiceRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
+      const dataUrl = await toPng(invoiceRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+      });
       const link = document.createElement("a");
       link.download = `${invoiceNo || "invoice"}.png`;
       link.href = dataUrl;
@@ -95,10 +205,14 @@ export default function InvoiceBuilderPage() {
   };
 
   const exportPdf = async () => {
-    if (!invoiceRef.current) return;
+    if (!invoiceRef.current || isEditing) return;
     setExporting(true);
     try {
-      const dataUrl = await toPng(invoiceRef.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
+      const dataUrl = await toPng(invoiceRef.current, {
+        pixelRatio: 2,
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+      });
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const pageWidth = 210;
       const pageHeight = 297;
@@ -121,37 +235,110 @@ export default function InvoiceBuilderPage() {
   return (
     <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div>
             <p className="text-xs font-bold text-slate-500">مدیریت مالی شرکت</p>
             <h1 className="text-2xl font-black">سازنده فاکتور</h1>
+            <p className="mt-1 text-xs text-slate-500">
+              {hasLocalDraft ? "پیش‌نویس محلی موجود است" : "فاکتور جدید"}
+              {message ? ` · ${message}` : ""}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={exportPdf} disabled={exporting} className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white disabled:opacity-50">{exporting ? "در حال آماده‌سازی…" : "📄 PDF"}</button>
-            <button onClick={exportImage} disabled={exporting} className="rounded-xl bg-sky-700 px-4 py-2 font-bold text-white disabled:opacity-50">🖼 تصویر</button>
-            <button onClick={addRow} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
-              ＋ ردیف هزینه
+          <div className="flex flex-wrap gap-2">
+            {!isEditing ? (
+              <button onClick={startEditing} className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-white">
+                ✏️ ویرایش فاکتور
+              </button>
+            ) : (
+              <>
+                <button onClick={saveDraft} className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white">
+                  💾 ذخیره موقت
+                </button>
+                <button onClick={cancelEditing} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
+                  ↩ لغو ویرایش
+                </button>
+              </>
+            )}
+            <button
+              onClick={exportPdf}
+              disabled={exporting || isEditing}
+              title={isEditing ? "ابتدا تغییرات را ذخیره کنید" : "خروجی PDF"}
+              className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white disabled:opacity-40"
+            >
+              {exporting ? "در حال آماده‌سازی…" : "📄 PDF"}
             </button>
-            <button onClick={() => window.print()} className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white">
+            <button
+              onClick={exportImage}
+              disabled={exporting || isEditing}
+              title={isEditing ? "ابتدا تغییرات را ذخیره کنید" : "خروجی تصویر"}
+              className="rounded-xl bg-sky-700 px-4 py-2 font-bold text-white disabled:opacity-40"
+            >
+              🖼 تصویر
+            </button>
+            {isEditing && (
+              <button onClick={addRow} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
+                ＋ ردیف هزینه
+              </button>
+            )}
+            <button
+              onClick={() => window.print()}
+              disabled={isEditing}
+              className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white disabled:opacity-40"
+            >
               🖨 چاپ / ذخیره PDF
             </button>
           </div>
         </div>
 
-        <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
-          <label className="block"><span className="label">نام شرکت</span><input value={company} onChange={(e) => setCompany(e.target.value)} className="input" /></label>
-          <label className="block"><span className="label">شماره سند</span><div className="flex gap-2"><input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="input" /><button type="button" onClick={generateNextDocumentNumber} className="shrink-0 rounded-xl bg-slate-900 px-3 text-xs font-bold text-white">شماره جدید</button></div></label>
-          <label className="block"><span className="label">تاریخ صدور</span><input value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="input" /></label>
-          <label className="block"><span className="label">وضعیت</span><select value={status} onChange={(e) => setStatus(e.target.value as InvoiceStatus)} className="input"><option value="draft">پیش‌نویس</option><option value="review">در حال بررسی</option><option value="final">نهایی</option><option value="paid">پرداخت‌شده</option></select></label>
-          <label className="block sm:col-span-2 lg:col-span-4"><span className="label">عنوان فاکتور</span><input value={title} onChange={(e) => setTitle(e.target.value)} className="input" /></label>
-          <label className="block"><span className="label">دریافت‌کننده / پروژه</span><input value={buyer} onChange={(e) => setBuyer(e.target.value)} className="input" /></label><label className="block sm:col-span-2"><span className="label">مبلغ دریافتی شرکت (تومان)</span><input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" /></label>
-        </section>
+        {isEditing && (
+          <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
+            <label className="block">
+              <span className="label">نام شرکت</span>
+              <input value={company} onChange={(e) => setCompany(e.target.value)} className="input" />
+            </label>
+            <label className="block">
+              <span className="label">شماره سند</span>
+              <div className="flex gap-2">
+                <input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="input" />
+                <button type="button" onClick={generateNextDocumentNumber} className="shrink-0 rounded-xl bg-slate-900 px-3 text-xs font-bold text-white">
+                  شماره جدید
+                </button>
+              </div>
+            </label>
+            <label className="block">
+              <span className="label">تاریخ صدور</span>
+              <input value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="input" />
+            </label>
+            <label className="block">
+              <span className="label">وضعیت</span>
+              <select value={status} onChange={(e) => setStatus(e.target.value as InvoiceStatus)} className="input">
+                <option value="draft">پیش‌نویس</option>
+                <option value="review">در حال بررسی</option>
+                <option value="final">نهایی</option>
+                <option value="paid">پرداخت‌شده</option>
+              </select>
+            </label>
+            <label className="block sm:col-span-2 lg:col-span-4">
+              <span className="label">عنوان فاکتور</span>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} className="input" />
+            </label>
+            <label className="block">
+              <span className="label">دریافت‌کننده / پروژه</span>
+              <input value={buyer} onChange={(e) => setBuyer(e.target.value)} className="input" />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="label">مبلغ دریافتی شرکت (تومان)</span>
+              <input inputMode="numeric" value={received} onChange={(e) => setReceived(e.target.value)} className="input" />
+            </label>
+          </section>
+        )}
 
         <article ref={invoiceRef} className="invoice-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
           <header className="flex flex-col gap-4 border-b-2 border-slate-900 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-black text-slate-900">{company}</h2>
-              <p className="mt-1 text-sm font-bold text-slate-600">{title}</p><p className="mt-1 text-xs text-slate-500">دریافت‌کننده: {buyer}</p>
+              <p className="mt-1 text-sm font-bold text-slate-600">{title}</p>
+              <p className="mt-1 text-xs text-slate-500">دریافت‌کننده: {buyer}</p>
             </div>
             <div className="text-sm leading-7 text-slate-600 sm:text-left">
               <div>شماره سند: <b className="text-slate-900">{invoiceNo}</b></div>
@@ -166,7 +353,11 @@ export default function InvoiceBuilderPage() {
             <Summary label="مانده طلب تنخواه‌دار" value={money(balance)} highlight />
           </div>
 
-          <div className="mb-2 text-base font-black">ریز هزینه‌ها و خریدهای انجام‌شده</div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-base font-black">ریز هزینه‌ها و خریدهای انجام‌شده</div>
+            {!isEditing && <span className="text-xs text-slate-400">برای تغییر اطلاعات، «ویرایش فاکتور» را بزنید.</span>}
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
@@ -183,16 +374,32 @@ export default function InvoiceBuilderPage() {
                   <tr key={row.id}>
                     <td className="border p-2 text-center">{(index + 1).toLocaleString("fa-IR")}</td>
                     <td className="border p-1">
-                      <input value={row.date} onChange={(e) => updateRow(row.id, { date: e.target.value })} className="w-full bg-transparent p-1 text-center outline-none print:p-0" />
+                      {isEditing ? (
+                        <input value={row.date} onChange={(e) => updateRow(row.id, { date: e.target.value })} className="w-full bg-transparent p-1 text-center outline-none" />
+                      ) : (
+                        <span className="block p-1 text-center">{row.date}</span>
+                      )}
                     </td>
                     <td className="border p-1">
-                      <input value={row.description} onChange={(e) => updateRow(row.id, { description: e.target.value })} className="w-full bg-transparent p-1 outline-none print:p-0" placeholder="شرح هزینه" />
+                      {isEditing ? (
+                        <input value={row.description} onChange={(e) => updateRow(row.id, { description: e.target.value })} className="w-full bg-transparent p-1 outline-none" placeholder="شرح هزینه" />
+                      ) : (
+                        <span className="block p-1">{row.description || "—"}</span>
+                      )}
                     </td>
                     <td className="border p-1">
-                      <input inputMode="numeric" value={row.amount} onChange={(e) => updateRow(row.id, { amount: e.target.value })} className="w-full bg-transparent p-1 text-left outline-none print:p-0" />
+                      {isEditing ? (
+                        <input inputMode="numeric" value={row.amount} onChange={(e) => updateRow(row.id, { amount: e.target.value })} className="w-full bg-transparent p-1 text-left outline-none" />
+                      ) : (
+                        <span className="block p-1 text-left">{money(Number(digits(row.amount).replace(/[,٬]/g, "") || 0))}</span>
+                      )}
                     </td>
                     <td className="border p-1 text-center print:hidden">
-                      <button onClick={() => removeRow(row.id)} className="font-bold text-red-600" aria-label="حذف ردیف">×</button>
+                      {isEditing && (
+                        <button onClick={() => removeRow(row.id)} className="font-bold text-red-600" aria-label="حذف ردیف">
+                          ×
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -224,6 +431,7 @@ export default function InvoiceBuilderPage() {
       <style jsx global>{`
         .label { display:block; margin-bottom:.35rem; font-size:.75rem; font-weight:700; color:#475569; }
         .input { width:100%; border-radius:.75rem; border:1px solid #e2e8f0; background:#fff; padding:.7rem .8rem; outline:none; }
+        .input:focus { border-color:#0f766e; box-shadow:0 0 0 3px rgba(15,118,110,.1); }
         @media print {
           @page { size: A4; margin: 10mm; }
           body { background:#fff !important; }
