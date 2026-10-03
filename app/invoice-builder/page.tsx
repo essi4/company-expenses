@@ -207,6 +207,7 @@ export default function InvoiceBuilderPage() {
   const exportPdf = async () => {
     if (!invoiceRef.current || isEditing) return;
     setExporting(true);
+    document.body.classList.add("pdf-export");
     try {
       const dataUrl = await toPng(invoiceRef.current, {
         pixelRatio: 2,
@@ -228,6 +229,7 @@ export default function InvoiceBuilderPage() {
       }
       pdf.save(`${invoiceNo || "invoice"}.pdf`);
     } finally {
+      document.body.classList.remove("pdf-export");
       setExporting(false);
     }
   };
