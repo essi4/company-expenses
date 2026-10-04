@@ -592,52 +592,59 @@ function Signature({
   const [canUndo, setCanUndo] = useState(false);
   const [canvasVersion, setCanvasVersion] = useState(0);
 
-  const clearCanvas = () => {
+  const setupCanvas = () => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-  };
-
-  const drawImage = (dataUrl: string) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const width = canvas.clientWidth || 320;
-    const height = 130;
-    clearCanvas();
-    if (!dataUrl) return;
-    const image = new Image();
-    image.onload = () => {
-      clearCanvas();
-      ctx.drawImage(image, 0, 0, width, height);
-    };
-    image.src = dataUrl;
-  };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return null;
     const ratio = Math.max(1, window.devicePixelRatio || 1);
     const width = Math.max(280, canvas.clientWidth || 280);
     const height = 130;
     canvas.width = width * ratio;
     canvas.height = height * ratio;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.lineWidth = 2.4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#0f172a";
+    return { canvas, ctx, width, height, ratio };
+  };
+
+  const clearCanvas = () => {
+    const setup = setupCanvas();
+    if (!setup) return;
+    const { canvas, ctx, ratio } = setup;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  };
+
+  const drawImage = (dataUrl: string) => {
+    const setup = setupCanvas();
+    if (!setup) return;
+    const { ctx, width, height } = setup;
+    ctx.clearRect(0, 0, setup.canvas.width, setup.canvas.height);
+    if (!dataUrl) return;
+    const image = new Image();
+    image.onload = () => {
+      if (canvasRef.current !== setup.canvas) return;
+      ctx.setTransform(setup.ratio, 0, 0, setup.ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(image, 0, 0, width, height);
+    };
+    image.src = dataUrl;
+  };
+
+  useEffect(() => {
+    if (!editing) return;
+    const setup = setupCanvas();
+    if (!setup) return;
     history.current = [value.image || ""];
     setCanUndo(false);
     drawImage(value.image || "");
-  }, [editing]);
+  }, [editing, canvasVersion, value.image]);
 
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -694,7 +701,6 @@ function Signature({
     drawing.current = false;
     history.current = [""];
     setCanUndo(false);
-    clearCanvas();
     setCanvasVersion((version) => version + 1);
     onChange({ image: "", signedAt: "" });
     onClear();
@@ -713,6 +719,7 @@ function Signature({
             onPointerMove={move}
             onPointerUp={finish}
             onPointerCancel={finish}
+            onPointerLeave={finish}
             aria-label={"محل رسم امضای " + label}
           />
           <div className="mt-2 flex flex-wrap gap-2">
