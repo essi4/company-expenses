@@ -591,6 +591,16 @@ function Signature({
   const history = useRef<string[]>([]);
   const [canUndo, setCanUndo] = useState(false);
 
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  };
+
   const drawImage = (dataUrl: string) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -598,11 +608,11 @@ function Signature({
     if (!ctx) return;
     const width = canvas.clientWidth || 320;
     const height = 130;
-    ctx.clearRect(0, 0, width, height);
+    clearCanvas();
     if (!dataUrl) return;
     const image = new Image();
     image.onload = () => {
-      ctx.clearRect(0, 0, width, height);
+      clearCanvas();
       ctx.drawImage(image, 0, 0, width, height);
     };
     image.src = dataUrl;
@@ -680,9 +690,10 @@ function Signature({
   };
 
   const clear = () => {
+    drawing.current = false;
     history.current = [""];
     setCanUndo(false);
-    drawImage("");
+    clearCanvas();
     onChange({ image: "", signedAt: "" });
     onClear();
   };
