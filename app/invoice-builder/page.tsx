@@ -706,6 +706,7 @@ function Signature({
       {editing ? (
         <>
           <canvas
+            key={canvasVersion}
             ref={canvasRef}
             className="mt-3 h-[130px] w-full touch-none rounded-xl border-2 border-dashed border-slate-300 bg-slate-50"
             onPointerDown={start}
