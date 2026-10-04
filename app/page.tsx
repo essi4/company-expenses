@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [months, setMonths] = useState<MonthSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +44,9 @@ export default function DashboardPage() {
 
         if (!cancelled) {
           setCompany(companyJson.data);
-          setMonths(monthsJson.data ?? []);
+          const nextMonths = monthsJson.data ?? [];
+          setMonths(nextMonths);
+          if (nextMonths.length > 0) setSelectedYear(String(nextMonths[0].month_key).slice(0, 4));
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "خطای نامشخص");
@@ -52,7 +55,15 @@ export default function DashboardPage() {
       }
     })();
 
-    return () => {
+    const years = Array.from(new Set(months.map((month) => String(month.month_key).slice(0, 4)))).sort((a, b) => Number(b) - Number(a));
+  const visibleMonths = selectedYear ? months.filter((month) => String(month.month_key).startsWith(`${selectedYear}-`)) : months;
+  const yearInvoiceCount = visibleMonths.reduce((sum, month) => sum + month.invoice_count, 0);
+  const yearMissionCount = visibleMonths.reduce((sum, month) => sum + month.mission_count, 0);
+  const yearTotalAmount = visibleMonths.reduce((sum, month) => sum + month.total_amount, 0);
+  const yearTotalDays = visibleMonths.reduce((sum, month) => sum + month.total_days, 0);
+  const yearLabel = (year: string) => year.replace(/\\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+
+  return () => {
       cancelled = true;
     };
   }, []);
@@ -90,11 +101,25 @@ export default function DashboardPage() {
         </section>
 
         <section>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-black">ماه‌ها</h2>
-              <p className="text-xs text-slate-500">از جدیدترین ماه شروع شده است.</p>
+              <h2 className="text-xl font-black">گزارش‌های ماهانه</h2>
+              <p className="text-xs text-slate-500">ابتدا سال را انتخاب کن، سپس ماه موردنظر را باز کن.</p>
             </div>
+            <label className="flex items-center gap-2 text-sm font-black">
+              <span className="text-slate-500">سال</span>
+              <select
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+                disabled={years.length === 0}
+                className="min-w-28 rounded-xl bg-white px-4 py-2.5 text-sm font-black shadow-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-slate-400"
+                aria-label="انتخاب سال"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>{yearLabel(year)}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {error && <div className="mb-4 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>}
@@ -108,8 +133,34 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-slate-500">اولین فاکتور یا گزارش مأموریت را ثبت کن.</p>
             </div>
           ) : (
-            <div className="grid gap-3">
-              {months.map((month) => (
+            <>
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                  <div className="text-xs font-bold text-slate-500">فاکتور</div>
+                  <div className="mt-1 font-black">{yearInvoiceCount.toLocaleString("fa-IR")}</div>
+                </div>
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                  <div className="text-xs font-bold text-slate-500">مأموریت</div>
+                  <div className="mt-1 font-black">{yearMissionCount.toLocaleString("fa-IR")}</div>
+                </div>
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                  <div className="text-xs font-bold text-slate-500">مبلغ فاکتورها</div>
+                  <div className="mt-1 font-black text-emerald-700">{money(yearTotalAmount)} تومان</div>
+                </div>
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                  <div className="text-xs font-bold text-slate-500">نفر-روز</div>
+                  <div className="mt-1 font-black text-sky-700">{yearTotalDays.toLocaleString("fa-IR")}</div>
+                </div>
+              </div>
+              {visibleMonths.length === 0 ? (
+                <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
+                  <div className="text-3xl">📅</div>
+                  <h3 className="mt-3 font-black">برای سال {yearLabel(selectedYear)} گزارشی ثبت نشده</h3>
+                  <p className="mt-1 text-sm text-slate-500">از همین سال اولین فاکتور یا گزارش مأموریت را ثبت کن.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {visibleMonths.map((month) => (
                 <a
                   key={month.month_key}
                   href={`/month/${month.month_key}`}
