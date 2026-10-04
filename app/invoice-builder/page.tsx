@@ -429,8 +429,8 @@ export default function InvoiceBuilderPage() {
           </section>
         )}
 
-        <article ref={invoiceRef} className="invoice-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
-          <header className="flex flex-col gap-4 border-b-2 border-slate-900 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <article ref={invoiceRef} className="invoice-paper overflow-hidden rounded-2xl bg-white p-5 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200 print:rounded-none print:shadow-none print:ring-0 sm:p-8">
+          <header className="flex flex-col gap-4 border-b-2 border-teal-700 pb-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-black text-slate-900">{company}</h2>
               <p className="mt-1 text-sm font-bold text-slate-600">{title}</p>
@@ -520,7 +520,7 @@ export default function InvoiceBuilderPage() {
             </table>
           </div>
 
-          <section className="mt-10 border-t border-dashed pt-5">
+          <section className="mt-10 border-t border-dashed border-slate-300 pt-6">
             <div className="mb-4">
               <h4 className="font-black">امضا و تأیید</h4>
               <p className="mt-1 text-xs text-slate-500">تنظیم‌کننده فعلاً تنها جایگاه دارای امضای دیجیتال با انگشت است.</p>
@@ -551,7 +551,7 @@ export default function InvoiceBuilderPage() {
         @media print {
           @page { size: A4; margin: 10mm; }
           body { background:#fff !important; }
-          .invoice-paper { min-height: 270mm; }
+          .invoice-paper { min-height: 270mm; border-radius: 0 !important; }
           input { border:0 !important; }
         }
       `}
@@ -768,9 +768,9 @@ function statusLabel(status: InvoiceStatus) {
 
 function Summary({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-xl border p-4 text-center ${highlight ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+    <div className={`rounded-2xl border p-4 text-center shadow-sm ${highlight ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
       <div className="text-xs font-bold text-slate-500">{label} (تومان)</div>
-      <div className={`mt-1 text-xl font-black ${highlight ? "text-emerald-700" : "text-slate-900"}`}>{value}</div>
+      <div className={`mt-1 text-2xl font-black tracking-tight ${highlight ? "text-emerald-700" : "text-slate-900"}`}>{value}</div>
     </div>
   );
 }
