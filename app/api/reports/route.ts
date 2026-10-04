@@ -301,11 +301,13 @@ export async function GET(request: Request) {
             amount, payment, invoice_number, invoice_image, notes, status
            FROM purchases
            WHERE company_id = ?
-             AND COALESCE(purchase_date, date) >= ?
-             AND COALESCE(purchase_date, date) <= ?
+             AND (
+               (COALESCE(purchase_date, date) >= ? AND COALESCE(purchase_date, date) <= ?)
+               OR substr(COALESCE(purchase_date, date), 1, 7) = ?
+             )
            ORDER BY COALESCE(purchase_date, date) DESC, id DESC`
         )
-        .bind(context.companyId, startDate, endDate)
+        .bind(context.companyId, startDate, endDate, monthKey)
         .all<PurchaseRow>(),
       db
         .prepare(
@@ -314,11 +316,13 @@ export async function GET(request: Request) {
             description, receipt_image, notes
            FROM payments
            WHERE company_id = ?
-             AND COALESCE(payment_date, date) >= ?
-             AND COALESCE(payment_date, date) <= ?
+             AND (
+               (COALESCE(payment_date, date) >= ? AND COALESCE(payment_date, date) <= ?)
+               OR substr(COALESCE(payment_date, date), 1, 7) = ?
+             )
            ORDER BY COALESCE(payment_date, date) DESC, id DESC`
         )
-        .bind(context.companyId, startDate, endDate)
+        .bind(context.companyId, startDate, endDate, monthKey)
         .all<PaymentRow>(),
       db
         .prepare(
