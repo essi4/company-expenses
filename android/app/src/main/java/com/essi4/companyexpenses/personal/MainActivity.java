@@ -16,7 +16,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
-    private static final String APP_URL = "https://company-expenses-essi5.vercel.app/";
+    private static final String APP_URL = "https://company-expenses-ni1qcrnao-essi5.vercel.app/";
     private static final int FILE_CHOOSER_REQUEST = 4101;
 
     private WebView webView;
@@ -52,7 +52,7 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(
                     WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
-                if (url.startsWith("https://company-expenses-opal.vercel.app/")) {
+                if (url.startsWith("https://company-expenses-ni1qcrnao-essi5.vercel.app/")) {
                     return false;
                 }
                 try {
