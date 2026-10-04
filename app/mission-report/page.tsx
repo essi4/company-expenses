@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateMissionTotals, type MissionLocation, type MissionRow, type MissionStatus } from "../../lib/mission";
+import { monthKeyFromJalaliDate } from "@/lib/month-key";
 
 type SignatureData = { name: string; image: string; signedAt: string };
 type SignatureMap = { preparer: SignatureData; approver: SignatureData; approval: SignatureData };
@@ -127,13 +128,41 @@ export default function MissionReportPage() {
     setMessage("تغییرات ذخیره‌نشده لغو شد.");
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     const draft = snapshot();
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    setSavedSnapshot(draft);
-    setHasLocalDraft(true);
-    setIsEditing(false);
-    setMessage("گزارش مأموریت در این دستگاه ذخیره شد.");
+    const monthKey = monthKeyFromJalaliDate(issuedAt);
+    if (!monthKey) {
+      setMessage("تاریخ تنظیم معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "mission",
+          document_number: documentNumber,
+          issued_at: issuedAt,
+          month_key: monthKey,
+          status,
+          title: subtitle,
+          total_amount: 0,
+          total_days: totals.totalDays,
+          payload_json: draft,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "ذخیره مأموریت ناموفق بود");
+
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      setSavedSnapshot(draft);
+      setHasLocalDraft(true);
+      setIsEditing(false);
+      setMessage("گزارش مأموریت در D1 ذخیره شد.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "ذخیره مأموریت ناموفق بود");
+    }
   };
 
   const totals = useMemo(() => calculateMissionTotals(rows), [rows]);
