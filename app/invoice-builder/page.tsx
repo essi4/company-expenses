@@ -589,6 +589,7 @@ function Signature({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const history = useRef<string[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
 
   const drawImage = (dataUrl: string) => {
     const canvas = canvasRef.current;
@@ -623,6 +624,7 @@ function Signature({
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#0f172a";
     history.current = [value.image || ""];
+    setCanUndo(false);
     drawImage(value.image || "");
   }, [editing]);
 
@@ -661,6 +663,7 @@ function Signature({
     if (!canvas) return;
     const image = canvas.toDataURL("image/png");
     history.current = [...history.current.slice(-19), image];
+    setCanUndo(history.current.length > 1);
     onChange({ image, signedAt: new Date().toLocaleString("fa-IR") });
   };
 
@@ -668,6 +671,7 @@ function Signature({
     if (history.current.length <= 1) return;
     history.current.pop();
     const previous = history.current[history.current.length - 1] || "";
+    setCanUndo(history.current.length > 1);
     drawImage(previous);
     onChange({
       image: previous,
@@ -677,7 +681,9 @@ function Signature({
 
   const clear = () => {
     history.current = [""];
+    setCanUndo(false);
     drawImage("");
+    onChange({ image: "", signedAt: "" });
     onClear();
   };
 
@@ -705,7 +711,7 @@ function Signature({
             <button
               type="button"
               onClick={undo}
-              disabled={history.current.length <= 1}
+              disabled={!canUndo}
               className="rounded-lg bg-white px-3 py-2 font-bold text-slate-700 ring-1 ring-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ↶ بازگشت
