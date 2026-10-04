@@ -30,6 +30,7 @@ type Draft = {
 };
 
 const DRAFT_KEY = "company-expenses:invoice-builder:draft:v1";
+const DRAFT_DOCUMENT_ID_KEY = "company-expenses:invoice-builder:d1-document-id:v1";
 
 const money = (value: number) => new Intl.NumberFormat("fa-IR").format(Math.round(value || 0));
 
@@ -84,6 +85,7 @@ export default function InvoiceBuilderPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<Draft>(defaultDraft);
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState(false);
   const invoiceRef = useRef<HTMLElement>(null);
@@ -156,8 +158,11 @@ export default function InvoiceBuilderPage() {
     }
 
     try {
-      const response = await fetch("/api/documents", {
-        method: "POST",
+      const existingId = documentId ?? window.localStorage.getItem(DRAFT_DOCUMENT_ID_KEY);
+      const method = existingId ? "PUT" : "POST";
+      const url = existingId ? `/api/documents?id=${encodeURIComponent(existingId)}` : "/api/documents";
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "invoice",
