@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateInvoiceTotals, type InvoiceEntry, type InvoiceStatus } from "../../lib/invoice";
@@ -71,6 +72,9 @@ const defaultDraft: Draft = {
 };
 
 export default function InvoiceBuilderPage() {
+  const searchParams = useSearchParams();
+  const documentId = searchParams.get("id");
+  const [savedDocumentId, setSavedDocumentId] = useState<string | null>(documentId);
   const [company, setCompany] = useState(defaultDraft.company);
   const [title, setTitle] = useState(defaultDraft.title);
   const [invoiceNo, setInvoiceNo] = useState(defaultDraft.invoiceNo);
@@ -89,6 +93,38 @@ export default function InvoiceBuilderPage() {
   const invoiceRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    if (documentId) {
+      setSavedDocumentId(documentId);
+      (async () => {
+        try {
+          const response = await fetch(`/api/documents?id=${encodeURIComponent(documentId)}`, { cache: "no-store" });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.message || "دریافت فاکتور ناموفق بود");
+          const doc = result.data;
+          if (doc?.type !== "invoice") throw new Error("این سند فاکتور نیست.");
+          const draft = typeof doc.payload_json === "string" ? JSON.parse(doc.payload_json) : doc.payload_json;
+          if (!draft || !Array.isArray(draft.rows)) throw new Error("اطلاعات فاکتور ناقص است.");
+          setCompany(draft.company ?? "");
+          setTitle(draft.title ?? doc.title ?? "");
+          setInvoiceNo(draft.invoiceNo ?? doc.document_number ?? "");
+          setIssueDate(draft.issueDate ?? doc.issued_at ?? "");
+          setReceived(draft.received ?? "");
+          setStatus(draft.status ?? doc.status ?? "draft");
+          setBuyer(draft.buyer ?? "");
+          setNote(draft.note ?? "");
+          setRows(draft.rows);
+          setSignature(draft.signature ?? defaultDraft.signature);
+          const normalized = { ...draft, note: draft.note ?? "", signature: draft.signature ?? defaultDraft.signature };
+          setSavedSnapshot(normalized);
+          setHasLocalDraft(false);
+          setIsEditing(false);
+          setMessage("فاکتور از سوابق ماه باز شد.");
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "دریافت فاکتور ناموفق بود");
+        }
+      })();
+      return;
+    }
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
@@ -110,7 +146,7 @@ export default function InvoiceBuilderPage() {
     } catch {
       window.localStorage.removeItem(DRAFT_KEY);
     }
-  }, []);
+  }, [documentId]);
 
   const snapshot = (): Draft => ({
     company,
@@ -156,8 +192,8 @@ export default function InvoiceBuilderPage() {
     }
 
     try {
-      const response = await fetch("/api/documents", {
-        method: "POST",
+      const response = await fetch(savedDocumentId ? `/api/documents?id=${encodeURIComponent(savedDocumentId)}` : "/api/documents", {
+        method: savedDocumentId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "invoice",
@@ -173,6 +209,7 @@ export default function InvoiceBuilderPage() {
       });
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.message || "ذخیره فاکتور ناموفق بود");
+      if (!savedDocumentId && result.data?.id) setSavedDocumentId(result.data.id);
 
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setSavedSnapshot(draft);

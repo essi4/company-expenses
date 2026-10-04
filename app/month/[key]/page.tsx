@@ -118,7 +118,12 @@ export default function MonthPage() {
         ) : (
           <div className="grid gap-3">
             {visible.map((item) => (
-              <article key={item.id} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <a
+                key={item.id}
+                href={item.type === "invoice" ? `/invoice-builder?id=${encodeURIComponent(item.id)}` : `/mission-report?id=${encodeURIComponent(item.id)}`}
+                className="block rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400"
+                aria-label={`باز کردن ${item.document_number}`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="font-black">{item.document_number}</h2>
@@ -133,7 +138,7 @@ export default function MonthPage() {
                     <div className="mt-1 text-xs text-slate-500">{statusLabel(item.status)}</div>
                   </div>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         )}
