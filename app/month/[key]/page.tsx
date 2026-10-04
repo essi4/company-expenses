@@ -48,6 +48,28 @@ export default function MonthPage() {
   const [tab, setTab] = useState<"invoice" | "mission">("invoice");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deleteDocument(item: DocumentItem) {
+    const confirmed = window.confirm(`سند «${item.document_number}» حذف شود؟\nاین عمل قابل بازگشت نیست.`);
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/documents?id=${encodeURIComponent(item.id)}`, {
+        method: "DELETE",
+        cache: "no-store",
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "حذف سند ناموفق بود");
+      setDocuments((current) => current.filter((doc) => doc.id !== item.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "خطای نامشخص در حذف سند");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -118,29 +140,39 @@ export default function MonthPage() {
         ) : (
           <div className="grid gap-3">
             {visible.map((item) => (
-              <a
-                key={item.id}
-                href={item.type === "invoice" ? `/invoice-builder?id=${encodeURIComponent(item.id)}` : `/mission-report?id=${encodeURIComponent(item.id)}`}
-                className="block rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400"
-                aria-label={`باز کردن ${item.document_number}`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h2 className="font-black">{item.document_number}</h2>
-                    <p className="mt-1 text-sm text-slate-500">{item.issued_at} · {item.title || (item.type === "invoice" ? "فاکتور" : "گزارش مأموریت")}</p>
+              <div key={item.id} className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                <a
+                  href={item.type === "invoice" ? `/invoice-builder?id=${encodeURIComponent(item.id)}` : `/mission-report?id=${encodeURIComponent(item.id)}`}
+                  className="block p-5 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  aria-label={`باز کردن ${item.document_number}`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="font-black">{item.document_number}</h2>
+                      <p className="mt-1 text-sm text-slate-500">{item.issued_at} · {item.title || (item.type === "invoice" ? "فاکتور" : "گزارش مأموریت")}</p>
+                    </div>
+                    <div className="text-left">
+                      {item.type === "invoice" ? (
+                        <div className="font-black text-emerald-700">{money(Number(item.total_amount || 0))} تومان</div>
+                      ) : (
+                        <div className="font-black text-sky-700">{Number(item.total_days || 0).toLocaleString("fa-IR")} نفر-روز</div>
+                      )}
+                      <div className="mt-1 text-xs text-slate-500">{statusLabel(item.status)}</div>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    {item.type === "invoice" ? (
-                      <div className="font-black text-emerald-700">{money(Number(item.total_amount || 0))} تومان</div>
-                    ) : (
-                      <div className="font-black text-sky-700">{Number(item.total_days || 0).toLocaleString("fa-IR")} نفر-روز</div>
-                    )}
-                    <div className="mt-1 text-xs text-slate-500">{statusLabel(item.status)}</div>
-                  </div>
+                </a>
+                <div className="border-t border-slate-100 px-5 py-3">
+                  <button
+                    type="button"
+                    onClick={() => deleteDocument(item)}
+                    disabled={deletingId === item.id}
+                    className="rounded-xl px-3 py-2 text-sm font-bold text-red-600 ring-1 ring-red-100 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {deletingId === item.id ? "در حال حذف…" : "حذف"}
+                  </button>
                 </div>
-              </a>
-            ))}
-          </div>
+              </div>
+            ))}         </div>
         )}
       </div>
     </main>
