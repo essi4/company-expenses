@@ -152,6 +152,18 @@ function jalaliToGregorian(value: string) {
   return `${gy}-${String(gm).padStart(2, "0")}-${String(remaining).padStart(2, "0")}`;
 }
 
+
+function storedDateToMonthKey(value: string | null) {
+  const normalized = normalizeDate(value);
+  if (!normalized) return "";
+  if (/^1\d{3}-\d{2}-\d{2}$/.test(normalized)) return normalized.slice(0, 7);
+  const date = new Date(normalized + "T00:00:00Z");
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US-u-ca-persian", { year: "numeric", month: "2-digit" }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return year && month ? year + "-" + month.padStart(2, "0") : "";
+}
 function getCurrentPersianMonthKey() {
   const parts = new Intl.DateTimeFormat("en-US-u-ca-persian", {
     year: "numeric",
@@ -293,6 +305,49 @@ export async function GET(request: Request) {
 
     const db = getDb();
 
+    if (range === "months") {
+      const [purchaseRows, missionRows] = await Promise.all([
+        db.prepare("SELECT date, purchase_date, amount FROM purchases WHERE company_id = ?").bind(context.companyId).all<{ date: string | null; purchase_date: string | null; amount: number | string | null }>(),
+        db.prepare("SELECT month, month_key, payload_json FROM missions WHERE company_id = ?").bind(context.companyId).all<{ month: string; month_key: string; payload_json: string }>(),
+      ]);
+
+      const currentMonth = getCurrentPersianMonthKey();
+      const monthMap = new Map<string, { monthKey: string; monthLabel: string; purchaseCount: number; missionCount: number; purchaseTotal: number; missionPersonDays: number }>();
+      const ensureMonth = (monthKey: string) => {
+        if (!monthKey) return null;
+        const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
+        if (!match) return null;
+        const month = Number(match[2]);
+        if (month < 1 || month > 12) return null;
+        const existing = monthMap.get(monthKey);
+        if (existing) return existing;
+        const created = { monthKey, monthLabel: persianMonthNames[month - 1] + " " + match[1], purchaseCount: 0, missionCount: 0, purchaseTotal: 0, missionPersonDays: 0 };
+        monthMap.set(monthKey, created);
+        return created;
+      };
+
+      ensureMonth(currentMonth);
+      for (const row of purchaseRows.results) {
+        const item = ensureMonth(storedDateToMonthKey(row.purchase_date || row.date));
+        if (!item) continue;
+        item.purchaseCount += 1;
+        item.purchaseTotal += normalizeAmount(row.amount);
+      }
+      for (const row of missionRows.results) {
+        const item = ensureMonth(normalizePersianMonthKey(row.month_key || row.month));
+        if (!item) continue;
+        item.missionCount += 1;
+        try {
+          const payload = JSON.parse(row.payload_json) as { rows?: Array<{ days?: unknown }> };
+          item.missionPersonDays += Array.isArray(payload.rows) ? payload.rows.reduce((sum, entry) => sum + Math.max(0, Math.trunc(Number(entry.days ?? 0) || 0)), 0) : 0;
+        } catch {
+          // Keep the month visible even when a legacy mission payload is malformed.
+        }
+      }
+
+      const months = Array.from(monthMap.values()).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+      return NextResponse.json({ success: true, range: "months", data: months }, { headers: { "Cache-Control": "private, no-store" } });
+    }
     const [purchaseResult, paymentResult, missionResult] = await Promise.all([
       db
         .prepare(
