@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateMissionTotals, type MissionLocation, type MissionRow, type MissionStatus } from "../../lib/mission";
@@ -80,9 +81,56 @@ export default function MissionReportPage() {
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [savedDocumentId, setSavedDocumentId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const reportRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    const id = searchParams.get("id");
+    const requestedMonth = searchParams.get("month");
+
+    if (id) {
+      (async () => {
+        try {
+          const response = await fetch(`/api/documents?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.message || "دریافت گزارش مأموریت ناموفق بود");
+          const doc = result.data;
+          if (doc.type !== "mission") throw new Error("این سند گزارش مأموریت نیست.");
+          const draft = JSON.parse(doc.payload_json) as Draft;
+          setCompany(draft.company);
+          setSubtitle(draft.subtitle);
+          setDocumentNumber(draft.documentNumber || doc.document_number);
+          setIssuedAt(draft.issuedAt || doc.issued_at);
+          setStatus(draft.status || doc.status);
+          setMonth(draft.month || "گزارش مأموریت");
+          setNote(draft.note ?? "");
+          setRows(Array.isArray(draft.rows) ? draft.rows : []);
+          setSignatures(draft.signatures ?? defaultDraft.signatures);
+          setSavedSnapshot({ ...draft, note: draft.note ?? "", signatures: draft.signatures ?? defaultDraft.signatures });
+          setSavedDocumentId(id);
+          setHasLocalDraft(false);
+          setMessage("گزارش مأموریت از سوابق ماه باز شد.");
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "دریافت گزارش مأموریت ناموفق بود");
+        }
+      })();
+      return;
+    }
+
+    if (requestedMonth) {
+      const [year, monthNumber] = requestedMonth.split("-");
+      const index = Number(monthNumber) - 1;
+      const names = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+      if (/^14\d{2}$/.test(year) && index >= 0 && index < 12) {
+        const label = `${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`;
+        setMonth(label);
+        setIssuedAt(`${year}/${String(Number(monthNumber)).padStart(2, "0")}/01`);
+      }
+      setHasLocalDraft(false);
+      return;
+    }
+
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY);
       if (!raw) return;
@@ -103,7 +151,7 @@ export default function MissionReportPage() {
     } catch {
       window.localStorage.removeItem(DRAFT_KEY);
     }
-  }, []);
+  }, [searchParams]);
 
   const snapshot = (): Draft => ({ company, subtitle, documentNumber, issuedAt, status, month, note, rows, signatures });
 
@@ -130,15 +178,16 @@ export default function MissionReportPage() {
 
   const saveDraft = async () => {
     const draft = snapshot();
-    const monthKey = monthKeyFromJalaliDate(issuedAt);
+    const requestedMonth = searchParams.get("month");
+    const monthKey = requestedMonth && /^14\\d{2}-\\d{2}$/.test(requestedMonth) ? requestedMonth : monthKeyFromJalaliDate(issuedAt);
     if (!monthKey) {
       setMessage("تاریخ تنظیم معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
       return;
     }
 
     try {
-      const response = await fetch("/api/documents", {
-        method: "POST",
+      const response = await fetch(savedDocumentId ? `/api/documents?id=${encodeURIComponent(savedDocumentId)}` : "/api/documents", {
+        method: savedDocumentId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "mission",
@@ -155,6 +204,8 @@ export default function MissionReportPage() {
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.message || "ذخیره مأموریت ناموفق بود");
 
+      const savedId = result.data?.id || savedDocumentId;
+      if (savedId) setSavedDocumentId(savedId);
       window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setSavedSnapshot(draft);
       setHasLocalDraft(true);

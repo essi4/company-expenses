@@ -103,7 +103,7 @@ export default function MonthPage() {
           </div>
           <div className="flex gap-2">
             <a href="/invoice-builder" className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white">＋ فاکتور</a>
-            <a href="/mission-report" className="rounded-xl bg-white px-4 py-2.5 text-sm font-bold ring-1 ring-slate-200">＋ مأموریت</a>
+            <a href={`/mission-report?month=${encodeURIComponent(monthKey)}`} className="rounded-xl bg-white px-4 py-2.5 text-sm font-bold ring-1 ring-slate-200">＋ مأموریت</a>
           </div>
         </div>
 
