@@ -520,12 +520,15 @@ export default function InvoiceBuilderPage() {
             </table>
           </div>
 
-          <section className="mt-10 border-t border-dashed pt-5">
-            <div className="mb-4">
-              <h4 className="font-black">امضا و تأیید</h4>
-              <p className="mt-1 text-xs text-slate-500">تنظیم‌کننده فعلاً تنها جایگاه دارای امضای دیجیتال با انگشت است.</p>
+          <section className="mt-12 border-t-2 border-slate-200 pt-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h4 className="font-black text-slate-900">امضا و تأیید دیجیتال</h4>
+                <p className="mt-1 text-xs text-slate-500">امضای ثبت‌شده همراه با نام و زمان ثبت، در انتهای سند نگهداری می‌شود.</p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200">سند تأییدپذیر</span>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-5 md:grid-cols-3">
               <Signature
                 label="تنظیم‌کننده"
                 value={signature}
@@ -538,9 +541,10 @@ export default function InvoiceBuilderPage() {
             </div>
           </section>
 
-          <p className="mt-8 text-center text-xs text-slate-500">
-            این سند به‌صورت سیستمی توسط سامانه مالی شرکت صادر گردیده است.
-          </p>
+          <footer className="mt-8 border-t border-slate-100 pt-4 text-center">
+            <p className="text-xs font-bold text-slate-500">این سند به‌صورت سیستمی توسط سامانه مالی شرکت صادر گردیده است.</p>
+            <p className="mt-1 text-[10px] text-slate-400">امضای دیجیتال ثبت‌شده، بخشی از سوابق همین سند است.</p>
+          </footer>
         </article>
       </div>
 
@@ -648,23 +652,28 @@ function Signature({
   };
 
   return (
-    <div className="text-center text-sm">
-      <div className="font-bold">{label}</div>
+    <div className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-4 text-center shadow-sm">
+      <div className="flex items-center justify-center gap-2">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-emerald-100 text-sm text-emerald-700">✓</span>
+        <div className="font-black text-slate-800">{label}</div>
+      </div>
       {editing ? (
         <>
-          <canvas ref={canvasRef} className="mt-3 h-[130px] w-full touch-none rounded-lg border border-dashed border-slate-300 bg-white" onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label={"محل رسم امضای " + label} />
+          <div className="mt-3 rounded-xl border border-dashed border-emerald-200 bg-white p-2">
+            <canvas ref={canvasRef} className="h-[130px] w-full touch-none rounded-lg bg-white" onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label={"محل رسم امضای " + label} />
+          </div>
           <div className="mt-2 flex gap-2">
             <input value={value.name} onChange={(e) => onChange({ name: e.target.value })} className="input" placeholder="نام امضاکننده" />
             <button type="button" onClick={onClear} className="rounded-lg px-3 py-2 font-bold text-red-600 ring-1 ring-slate-200">پاک‌کردن</button>
           </div>
         </>
       ) : (
-        <div className="mt-3 h-[130px] border-b border-slate-400">
-          {value.image ? <img src={value.image} alt={"امضای " + label} className="mx-auto h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">بدون امضا</span>}
+        <div className="mt-3 flex h-[130px] items-center justify-center rounded-xl border border-slate-200 bg-white">
+          {value.image ? <img src={value.image} alt={"امضای " + label} className="h-full max-w-full object-contain" /> : <span className="text-xs text-slate-400">بدون امضا</span>}
         </div>
       )}
-      <div className="mt-2 font-bold">{value.name || "—"}</div>
-      {value.signedAt && <div className="text-[10px] text-slate-400">ثبت امضا: {value.signedAt}</div>}
+      <div className="mt-2 border-t border-dashed border-slate-300 pt-2 font-black text-slate-700">{value.name || "نام امضاکننده"}</div>
+      {value.signedAt && <div className="mt-1 text-[10px] text-slate-400">ثبت دیجیتال: {value.signedAt}</div>}
     </div>
   );
 }
