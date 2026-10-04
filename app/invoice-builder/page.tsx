@@ -590,6 +590,7 @@ function Signature({
   const drawing = useRef(false);
   const history = useRef<string[]>([]);
   const [canUndo, setCanUndo] = useState(false);
+  const [canvasVersion, setCanvasVersion] = useState(0);
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -694,6 +695,7 @@ function Signature({
     history.current = [""];
     setCanUndo(false);
     clearCanvas();
+    setCanvasVersion((version) => version + 1);
     onChange({ image: "", signedAt: "" });
     onClear();
   };
