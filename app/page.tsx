@@ -62,7 +62,7 @@ export default function DashboardPage() {
 
   const years = Array.from(new Set(months.map((month) => String(month.month_key).slice(0, 4)))).sort((a, b) => Number(b) - Number(a));
   const visibleMonths = selectedYear
-    ? months.filter((month) => String(month.month_key).startsWith(`${selectedYear}-`))
+    ? months.filter((month) => String(month.month_key).startsWith(selectedYear + "-"))
     : months;
   const yearInvoiceCount = visibleMonths.reduce((sum, month) => sum + month.invoice_count, 0);
   const yearMissionCount = visibleMonths.reduce((sum, month) => sum + month.mission_count, 0);
@@ -166,19 +166,26 @@ export default function DashboardPage() {
                   {visibleMonths.map((month) => (
                     <a
                       key={month.month_key}
-                      href={`/month/${month.month_key}`}
+                      href={"/month/" + month.month_key}
                       className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-slate-300"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <h3 className="text-xl font-black">{month.label}</h3>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {month.invoice_count.toLocaleString("fa-IR")} فاکتور · {month.mission_count.toLocaleString("fa-IR")} مأموریت
-                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
+                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600">
+                              {month.invoice_count.toLocaleString("fa-IR")} فاکتور
+                            </span>
+                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600">
+                              {month.mission_count.toLocaleString("fa-IR")} مأموریت
+                            </span>
+                          </div>
                         </div>
                         <div className="text-left">
+                          <div className="text-xs font-bold text-slate-500">مبلغ فاکتورها</div>
                           <div className="font-black text-emerald-700">{money(month.total_amount)} تومان</div>
-                          <div className="mt-1 text-xs text-slate-500">{month.total_days.toLocaleString("fa-IR")} نفر-روز</div>
+                          <div className="mt-2 text-xs font-bold text-slate-500">مجموع مأموریت</div>
+                          <div className="font-black text-sky-700">{month.total_days.toLocaleString("fa-IR")} نفر-روز</div>
                         </div>
                       </div>
                     </a>
