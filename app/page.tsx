@@ -70,11 +70,6 @@ export default function DashboardPage() {
   const yearTotalDays = visibleMonths.reduce((sum, month) => sum + month.total_days, 0);
   const yearLabel = (year: string) => year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 
-  return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
     <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
@@ -159,6 +154,7 @@ export default function DashboardPage() {
                   <div className="mt-1 font-black text-sky-700">{yearTotalDays.toLocaleString("fa-IR")}</div>
                 </div>
               </div>
+
               {visibleMonths.length === 0 ? (
                 <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
                   <div className="text-3xl">📅</div>
@@ -168,26 +164,28 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-3">
                   {visibleMonths.map((month) => (
-                <a
-                  key={month.month_key}
-                  href={`/month/${month.month_key}`}
-                  className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-slate-300"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-black">{month.label}</h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {month.invoice_count.toLocaleString("fa-IR")} فاکتور · {month.mission_count.toLocaleString("fa-IR")} مأموریت
-                      </p>
-                    </div>
-                    <div className="text-left">
-                      <div className="font-black text-emerald-700">{money(month.total_amount)} تومان</div>
-                      <div className="mt-1 text-xs text-slate-500">{month.total_days.toLocaleString("fa-IR")} نفر-روز</div>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
+                    <a
+                      key={month.month_key}
+                      href={`/month/${month.month_key}`}
+                      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-slate-300"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-xl font-black">{month.label}</h3>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {month.invoice_count.toLocaleString("fa-IR")} فاکتور · {month.mission_count.toLocaleString("fa-IR")} مأموریت
+                          </p>
+                        </div>
+                        <div className="text-left">
+                          <div className="font-black text-emerald-700">{money(month.total_amount)} تومان</div>
+                          <div className="mt-1 text-xs text-slate-500">{month.total_days.toLocaleString("fa-IR")} نفر-روز</div>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
