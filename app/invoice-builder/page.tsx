@@ -322,28 +322,28 @@ export default function InvoiceBuilderPage() {
   };
 
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
+    <main dir="rtl" className="min-h-screen bg-[#eef5f5] text-slate-900">
       <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div>
-            <p className="text-xs font-bold text-slate-500">مدیریت مالی شرکت</p>
-            <h1 className="text-2xl font-black">سازنده فاکتور</h1>
+            <p className="text-xs font-black tracking-wide text-teal-700">مدیریت مالی شرکت</p>
+            <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#12323d]">سازنده فاکتور</h1>
             <p className="mt-1 text-xs text-slate-500">
               {hasLocalDraft ? "پیش‌نویس محلی موجود است" : "فاکتور جدید"}
               {message ? ` · ${message}` : ""}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => (window.location.href = "/")} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
+            <button onClick={() => (window.location.href = "/")} className="rounded-xl bg-white px-4 py-2 font-bold text-[#12323d] shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
               ← داشبورد
             </button>
             {!isEditing ? (
-              <button onClick={startEditing} className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-white">
+              <button onClick={startEditing} className="rounded-xl bg-[#12323d] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#0d2933]">
                 ✏️ ویرایش فاکتور
               </button>
             ) : (
               <>
-                <button onClick={saveDraft} className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white">
+                <button onClick={saveDraft} className="rounded-xl bg-teal-700 px-4 py-2 font-bold text-white shadow-sm hover:bg-teal-800">
                   💾 ذخیره موقت
                 </button>
                 <button onClick={cancelEditing} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
@@ -363,7 +363,7 @@ export default function InvoiceBuilderPage() {
               onClick={exportImage}
               disabled={exporting || isEditing}
               title={isEditing ? "ابتدا تغییرات را ذخیره کنید" : "خروجی تصویر"}
-              className="rounded-xl bg-sky-700 px-4 py-2 font-bold text-white disabled:opacity-40"
+              className="rounded-xl bg-[#176b78] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#125965] disabled:opacity-40"
             >
               🖼 تصویر
             </button>
@@ -375,7 +375,7 @@ export default function InvoiceBuilderPage() {
             <button
               onClick={() => window.print()}
               disabled={isEditing}
-              className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white disabled:opacity-40"
+              className="rounded-xl bg-[#12323d] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#0d2933] disabled:opacity-40"
             >
               🖨 چاپ / ذخیره PDF
             </button>
@@ -429,10 +429,10 @@ export default function InvoiceBuilderPage() {
           </section>
         )}
 
-        <article ref={invoiceRef} className="invoice-paper overflow-hidden rounded-2xl bg-white p-5 shadow-xl shadow-slate-200/60 ring-1 ring-slate-200 print:rounded-none print:shadow-none print:ring-0 sm:p-8">
-          <header className="flex flex-col gap-4 border-b-2 border-teal-700 pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <article ref={invoiceRef} className="invoice-paper overflow-hidden rounded-2xl bg-white p-5 shadow-2xl shadow-[#12323d]/10 ring-1 ring-[#c9dddd] print:rounded-none print:shadow-none print:ring-0 sm:p-8">
+          <header className="flex flex-col gap-4 border-b-2 border-[#176b78] pb-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-2xl font-black text-slate-900">{company}</h2>
+              <h2 className="text-2xl font-black tracking-tight text-[#12323d]">{company}</h2>
               <p className="mt-1 text-sm font-bold text-slate-600">{title}</p>
               <p className="mt-1 text-xs text-slate-500">دریافت‌کننده: {buyer}</p>
             </div>
@@ -443,7 +443,7 @@ export default function InvoiceBuilderPage() {
             </div>
           </header>
 
-          <div className="my-5 grid gap-3 sm:grid-cols-3">
+          <div className="my-6 grid gap-3 sm:grid-cols-3">
             <Summary label="مبلغ دریافتی شرکت" value={money(receivedValue)} />
             <Summary label="جمع کل هزینه‌ها" value={money(total)} />
             <Summary label="مانده طلب تنخواه‌دار" value={money(balance)} highlight />
@@ -456,15 +456,15 @@ export default function InvoiceBuilderPage() {
             </section>
           )}
 
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="text-base font-black">ریز هزینه‌ها و خریدهای انجام‌شده</div>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="border-r-4 border-teal-600 pr-3 text-base font-black text-[#12323d]">ریز هزینه‌ها و خریدهای انجام‌شده</div>
             {!isEditing && <span className="text-xs text-slate-400">برای تغییر اطلاعات، «ویرایش فاکتور» را بزنید.</span>}
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm invoice-table">
               <thead>
-                <tr className="bg-slate-900 text-white">
+                <tr className="bg-[#12323d] text-white">
                   <th className="border p-2">ردیف</th>
                   <th className="border p-2">تاریخ</th>
                   <th className="border p-2 text-right">شرح کالا / هزینه</th>
@@ -506,12 +506,12 @@ export default function InvoiceBuilderPage() {
                     </td>
                   </tr>
                 ))}
-                <tr className="total-row bg-slate-100 font-black">
+                <tr className="total-row bg-[#eef5f5] font-black text-[#12323d]">
                   <td colSpan={3} className="border p-3">جمع کل هزینه‌ها</td>
                   <td className="border p-3 text-left">{money(total)}</td>
                   <td className="border print:hidden" />
                 </tr>
-                <tr className="bg-emerald-50 font-black text-emerald-800">
+                <tr className="bg-[#e7f5f2] font-black text-teal-800">
                   <td colSpan={3} className="border border-emerald-200 p-3">مانده طلب تنخواه‌دار</td>
                   <td className="border border-emerald-200 p-3 text-left">{money(balance)}</td>
                   <td className="border border-emerald-200 print:hidden" />
@@ -520,9 +520,9 @@ export default function InvoiceBuilderPage() {
             </table>
           </div>
 
-          <section className="mt-10 border-t border-dashed border-slate-300 pt-6">
+          <section className="mt-10 border-t-2 border-[#d7e5e5] pt-6">
             <div className="mb-4">
-              <h4 className="font-black">امضا و تأیید</h4>
+              <h4 className="font-black text-[#12323d]">امضا و تأیید</h4>
               <p className="mt-1 text-xs text-slate-500">تنظیم‌کننده فعلاً تنها جایگاه دارای امضای دیجیتال با انگشت است.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
@@ -714,7 +714,7 @@ function Signature({
           <canvas
             key={canvasVersion}
             ref={canvasRef}
-            className="mt-3 h-[130px] w-full touch-none rounded-xl border-2 border-dashed border-slate-300 bg-slate-50"
+            className="mt-3 h-[130px] w-full touch-none rounded-xl border-2 border-dashed border-teal-200 bg-[#f3f9f8]"
             onPointerDown={start}
             onPointerMove={move}
             onPointerUp={finish}
@@ -768,9 +768,9 @@ function statusLabel(status: InvoiceStatus) {
 
 function Summary({ label, value, highlight = false }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 text-center shadow-sm ${highlight ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+    <div className={`rounded-2xl border p-4 text-center shadow-sm ${highlight ? "border-teal-200 bg-[#e7f5f2]" : "border-[#d9e7e7] bg-[#f5f9f9]"}`}>
       <div className="text-xs font-bold text-slate-500">{label} (تومان)</div>
-      <div className={`mt-1 text-2xl font-black tracking-tight ${highlight ? "text-emerald-700" : "text-slate-900"}`}>{value}</div>
+      <div className={`mt-1 text-2xl font-black tracking-tight ${highlight ? "text-teal-800" : "text-[#12323d]"}`}>{value}</div>
     </div>
   );
 }
