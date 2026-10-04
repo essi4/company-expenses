@@ -22,6 +22,7 @@ type Draft = {
 };
 
 const DRAFT_KEY = "company-expenses:mission-report:draft:v1";
+const DRAFT_DOCUMENT_ID_KEY = "company-expenses:mission-report:d1-document-id:v1";
 
 const initialRows: MissionRow[] = [
   {
@@ -78,6 +79,7 @@ export default function MissionReportPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<Draft>(defaultDraft);
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
+  const [documentId, setDocumentId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState(false);
   const reportRef = useRef<HTMLElement>(null);
@@ -137,8 +139,11 @@ export default function MissionReportPage() {
     }
 
     try {
-      const response = await fetch("/api/documents", {
-        method: "POST",
+      const existingId = documentId ?? window.localStorage.getItem(DRAFT_DOCUMENT_ID_KEY);
+      const method = existingId ? "PUT" : "POST";
+      const url = existingId ? `/api/documents?id=${encodeURIComponent(existingId)}` : "/api/documents";
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "mission",

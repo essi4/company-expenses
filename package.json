@@ -6,7 +6,7 @@
     "d1:verify:parity": "node scripts/verify-d1-data-parity.mjs",
     "d1:import:supabase": "node scripts/migrate-supabase-to-d1.mjs",
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run d1:migrate:remote && next build",
     "start": "next start",
     "lint": "next lint",
     "d1:migrations:list:local": "npx wrangler@4.135.0 d1 migrations list company-expenses --local",
