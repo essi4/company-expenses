@@ -36,7 +36,7 @@ jobs:
       - name: Checkout migration target branch
         uses: actions/checkout@v4
         with:
-          ref: feature/d1-data-layer
+          ref: ${{ github.ref_name }}
           fetch-depth: 1
 
       - name: Validate Cloudflare secrets
@@ -57,8 +57,8 @@ jobs:
       - name: Verify migration target
         shell: bash
         run: |
-          test -f migrations/0002_d1_company_finance.sql || {
-            echo "::error::Migration 0002_d1_company_finance.sql is missing from feature/d1-data-layer"
+          test -f migrations/0003_missions.sql || {
+            echo "::error::Migration 0003_missions.sql is missing from the workflow branch"
             exit 1
           }
           git log -1 --oneline

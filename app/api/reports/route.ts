@@ -33,6 +33,17 @@ type PaymentRow = {
   notes: string | null;
 };
 
+type MissionRow = {
+  id: number;
+  document_number: string;
+  issued_at: string;
+  issued_date: string;
+  status: string;
+  month: string;
+  month_key: string;
+  payload_json: string;
+};
+
 function pad2(value: number) {
   return String(value).padStart(2, "0");
 }
@@ -69,16 +80,147 @@ function normalizeDate(value: unknown) {
     .split(" ")[0];
 }
 
+const persianMonthNames = [
+  "فروردین",
+  "اردیبهشت",
+  "خرداد",
+  "تیر",
+  "مرداد",
+  "شهریور",
+  "مهر",
+  "آبان",
+  "آذر",
+  "دی",
+  "بهمن",
+  "اسفند",
+];
+
+function div(a: number, b: number) {
+  return Math.floor(a / b);
+}
+
+function mod(a: number, b: number) {
+  return a - Math.floor(a / b) * b;
+}
+
+function jalaliToGregorian(value: string) {
+  const v = toEnglishDigits(value).replace(/[-.]/g, "-").trim();
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v);
+  if (!m) return null;
+
+  const jy = Number(m[1]);
+  const jm = Number(m[2]);
+  const jd = Number(m[3]);
+  if (jy < 1200 || jy > 1600 || jm < 1 || jm > 12 || jd < 1 || jd > (jm <= 6 ? 31 : 30)) {
+    return null;
+  }
+
+  let j =
+    365 * (jy - 979) +
+    div(jy - 979, 33) * 8 +
+    div(mod(jy - 979, 33) + 3, 4) +
+    jd -
+    1;
+  j += jm < 7 ? (jm - 1) * 31 : (jm - 1) * 30 + 6;
+  j += 355668;
+
+  let gy = 400 * div(j, 146097);
+  j = mod(j, 146097);
+  if (j > 36524) {
+    gy += 100 * div(--j, 36524);
+    j = mod(j, 36524);
+    if (j >= 365) j++;
+  }
+
+  gy += 4 * div(j, 1461);
+  j = mod(j, 1461);
+  if (j > 365) {
+    gy += div(j - 1, 365);
+    j = mod(j - 1, 365);
+  }
+
+  const gd = j + 1;
+  const leap = gy % 4 === 0 && (gy % 100 !== 0 || gy % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  let gm = 1;
+  let remaining = gd;
+  while (remaining > days[gm - 1]) {
+    remaining -= days[gm - 1];
+    gm++;
+  }
+
+  return `${gy}-${String(gm).padStart(2, "0")}-${String(remaining).padStart(2, "0")}`;
+}
+
+
+function storedDateToMonthKey(value: string | null) {
+  const normalized = normalizeDate(value);
+  if (!normalized) return "";
+  if (/^1\d{3}-\d{2}-\d{2}$/.test(normalized)) return normalized.slice(0, 7);
+  const date = new Date(normalized + "T00:00:00Z");
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US-u-ca-persian", { year: "numeric", month: "2-digit" }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return year && month ? year + "-" + month.padStart(2, "0") : "";
+}
+function getCurrentPersianMonthKey() {
+  const parts = new Intl.DateTimeFormat("en-US-u-ca-persian", {
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  return year && month ? `${year}-${month.padStart(2, "0")}` : "";
+}
+
+function normalizePersianMonthKey(value: string | null) {
+  if (!value) return "";
+  const normalized = toEnglishDigits(value).trim();
+  const match = /^(\d{4})[-/](\d{1,2})$/.exec(normalized);
+  if (match) return `${match[1]}-${match[2].padStart(2, "0")}`;
+
+  const yearMatch = normalized.match(/\d{4}/);
+  const year = yearMatch?.[0];
+  if (!year) return "";
+  const index = persianMonthNames.findIndex((name) => normalized.includes(name));
+  return index >= 0 ? `${year}-${String(index + 1).padStart(2, "0")}` : "";
+}
+
+function getPersianMonthRange(monthKey: string) {
+  const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+
+  const startDate = jalaliToGregorian(
+    `${year}-${String(month).padStart(2, "0")}-01`
+  );
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const endExclusive = jalaliToGregorian(
+    `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`
+  );
+
+  if (!startDate || !endExclusive) return null;
+
+  const end = new Date(`${endExclusive}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() - 1);
+
+  return {
+    startDate,
+    endDate: end.toISOString().slice(0, 10),
+    monthLabel: persianMonthNames[month - 1] + " " + String(year),
+  };
+}
+
 function getTodayGregorian() {
   const now = new Date();
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(
     now.getDate()
   )}`;
-}
-
-function getStartOfMonthGregorian() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-01`;
 }
 
 function getStartOfWeekGregorian() {
@@ -137,19 +279,76 @@ export async function GET(request: Request) {
       );
     }
 
-    const range = new URL(request.url).searchParams.get("range") || "month";
+    const params = new URL(request.url).searchParams;
+    const range = params.get("range") || "month";
 
-    let startDate = getStartOfMonthGregorian();
-    if (range === "today") {
-      startDate = getTodayGregorian();
+    let startDate = getTodayGregorian();
+    let endDate = getTodayGregorian();
+    let monthKey = "";
+    let monthLabel = "";
+
+    if (range === "month") {
+      monthKey = normalizePersianMonthKey(params.get("month")) || getCurrentPersianMonthKey();
+      const monthRange = getPersianMonthRange(monthKey);
+      if (!monthRange) {
+        return NextResponse.json(
+          { success: false, message: "ماه گزارش معتبر نیست." },
+          { status: 400 }
+        );
+      }
+      startDate = monthRange.startDate;
+      endDate = monthRange.endDate;
+      monthLabel = monthRange.monthLabel;
     } else if (range === "week") {
       startDate = getStartOfWeekGregorian();
     }
 
-    const endDate = getTodayGregorian();
     const db = getDb();
 
-    const [purchaseResult, paymentResult] = await Promise.all([
+    if (range === "months") {
+      const [purchaseRows, missionRows] = await Promise.all([
+        db.prepare("SELECT date, purchase_date, amount FROM purchases WHERE company_id = ?").bind(context.companyId).all<{ date: string | null; purchase_date: string | null; amount: number | string | null }>(),
+        db.prepare("SELECT month, month_key, payload_json FROM missions WHERE company_id = ?").bind(context.companyId).all<{ month: string; month_key: string; payload_json: string }>(),
+      ]);
+
+      const currentMonth = getCurrentPersianMonthKey();
+      const monthMap = new Map<string, { monthKey: string; monthLabel: string; purchaseCount: number; missionCount: number; purchaseTotal: number; missionPersonDays: number }>();
+      const ensureMonth = (monthKey: string) => {
+        if (!monthKey) return null;
+        const match = /^(\d{4})-(\d{2})$/.exec(monthKey);
+        if (!match) return null;
+        const month = Number(match[2]);
+        if (month < 1 || month > 12) return null;
+        const existing = monthMap.get(monthKey);
+        if (existing) return existing;
+        const created = { monthKey, monthLabel: persianMonthNames[month - 1] + " " + match[1], purchaseCount: 0, missionCount: 0, purchaseTotal: 0, missionPersonDays: 0 };
+        monthMap.set(monthKey, created);
+        return created;
+      };
+
+      ensureMonth(currentMonth);
+      for (const row of purchaseRows.results) {
+        const item = ensureMonth(storedDateToMonthKey(row.purchase_date || row.date));
+        if (!item) continue;
+        item.purchaseCount += 1;
+        item.purchaseTotal += normalizeAmount(row.amount);
+      }
+      for (const row of missionRows.results) {
+        const item = ensureMonth(normalizePersianMonthKey(row.month_key || row.month));
+        if (!item) continue;
+        item.missionCount += 1;
+        try {
+          const payload = JSON.parse(row.payload_json) as { rows?: Array<{ days?: unknown }> };
+          item.missionPersonDays += Array.isArray(payload.rows) ? payload.rows.reduce((sum, entry) => sum + Math.max(0, Math.trunc(Number(entry.days ?? 0) || 0)), 0) : 0;
+        } catch {
+          // Keep the month visible even when a legacy mission payload is malformed.
+        }
+      }
+
+      const months = Array.from(monthMap.values()).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+      return NextResponse.json({ success: true, range: "months", data: months }, { headers: { "Cache-Control": "private, no-store" } });
+    }
+    const [purchaseResult, paymentResult, missionResult] = await Promise.all([
       db
         .prepare(
           `SELECT
@@ -157,11 +356,13 @@ export async function GET(request: Request) {
             amount, payment, invoice_number, invoice_image, notes, status
            FROM purchases
            WHERE company_id = ?
-             AND COALESCE(purchase_date, date) >= ?
-             AND COALESCE(purchase_date, date) <= ?
+             AND (
+               (COALESCE(purchase_date, date) >= ? AND COALESCE(purchase_date, date) <= ?)
+               OR substr(COALESCE(purchase_date, date), 1, 7) = ?
+             )
            ORDER BY COALESCE(purchase_date, date) DESC, id DESC`
         )
-        .bind(context.companyId, startDate, endDate)
+        .bind(context.companyId, startDate, endDate, monthKey)
         .all<PurchaseRow>(),
       db
         .prepare(
@@ -170,16 +371,52 @@ export async function GET(request: Request) {
             description, receipt_image, notes
            FROM payments
            WHERE company_id = ?
-             AND COALESCE(payment_date, date) >= ?
-             AND COALESCE(payment_date, date) <= ?
+             AND (
+               (COALESCE(payment_date, date) >= ? AND COALESCE(payment_date, date) <= ?)
+               OR substr(COALESCE(payment_date, date), 1, 7) = ?
+             )
            ORDER BY COALESCE(payment_date, date) DESC, id DESC`
         )
-        .bind(context.companyId, startDate, endDate)
+        .bind(context.companyId, startDate, endDate, monthKey)
         .all<PaymentRow>(),
+      db
+        .prepare(
+          `SELECT
+            id, document_number, issued_at, issued_date, status, month, month_key, payload_json
+           FROM missions
+           WHERE company_id = ?
+             AND issued_date >= ?
+             AND issued_date <= ?
+           ORDER BY issued_date DESC, id DESC`
+        )
+        .bind(context.companyId, startDate, endDate)
+        .all<MissionRow>(),
     ]);
 
     const purchases = purchaseResult.results.map(mapPurchase);
     const payments = paymentResult.results.map(mapPayment);
+    const missions = missionResult.results.map((row) => {
+      let payload: { rows?: Array<{ days?: unknown }> } = {};
+      try {
+        payload = JSON.parse(row.payload_json) as { rows?: Array<{ days?: unknown }> };
+      } catch {
+        payload = {};
+      }
+      const totalPersonDays = Array.isArray(payload.rows)
+        ? payload.rows.reduce((sum, item) => sum + Math.max(0, Math.trunc(Number(item.days ?? 0) || 0)), 0)
+        : 0;
+
+      return {
+        id: row.id,
+        documentNumber: row.document_number,
+        issuedAt: row.issued_at,
+        issuedDate: row.issued_date,
+        status: row.status,
+        month: row.month,
+        monthKey: row.month_key,
+        totalPersonDays,
+      };
+    });
 
     const purchaseTotal = purchases.reduce(
       (sum, item) => sum + Number(item.amount || 0),
@@ -196,15 +433,20 @@ export async function GET(request: Request) {
         range,
         startDate,
         endDate,
+        monthKey: monthKey || null,
+        monthLabel: monthLabel || null,
         summary: {
           purchaseCount: purchases.length,
           purchaseTotal,
           paymentCount: payments.length,
           paymentTotal,
+          missionCount: missions.length,
+          missionPersonDays: missions.reduce((sum, item) => sum + item.totalPersonDays, 0),
           balance: purchaseTotal - paymentTotal,
         },
         purchases,
         payments,
+        missions,
       },
       { headers: { "Cache-Control": "private, no-store" } }
     );

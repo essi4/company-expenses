@@ -79,6 +79,7 @@ export default function MissionReportPage() {
   const [hasLocalDraft, setHasLocalDraft] = useState(false);
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const reportRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -127,13 +128,32 @@ export default function MissionReportPage() {
     setMessage("تغییرات ذخیره‌نشده لغو شد.");
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     const draft = snapshot();
     window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     setSavedSnapshot(draft);
     setHasLocalDraft(true);
-    setIsEditing(false);
-    setMessage("گزارش مأموریت در این دستگاه ذخیره شد.");
+    setSaving(true);
+    setMessage("در حال ذخیره گزارش مأموریت…");
+
+    try {
+      const response = await fetch("/api/missions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify(draft),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || "خطا در ذخیره سامانه");
+      }
+      setIsEditing(false);
+      setMessage("گزارش مأموریت در دستگاه و سامانه ذخیره شد.");
+    } catch {
+      setMessage("گزارش روی همین دستگاه ذخیره شد؛ ذخیره سامانه ناموفق بود.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const totals = useMemo(() => calculateMissionTotals(rows), [rows]);
@@ -236,7 +256,7 @@ export default function MissionReportPage() {
               <button onClick={startEditing} className="rounded-xl bg-amber-500 px-4 py-2 font-bold text-white">✏️ ویرایش گزارش</button>
             ) : (
               <>
-                <button onClick={saveDraft} className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white">💾 ذخیره موقت</button>
+                <button onClick={saveDraft} disabled={saving} className="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white disabled:opacity-50">{saving ? "در حال ذخیره…" : "💾 ذخیره مأموریت"}</button>
                 <button onClick={cancelEditing} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">↩ لغو ویرایش</button>
                 <button onClick={addRow} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">＋ نفر</button>
               </>
