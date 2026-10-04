@@ -5,6 +5,7 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateInvoiceTotals, type InvoiceEntry, type InvoiceStatus } from "../../lib/invoice";
 import { generateDocumentNumber, nextTemporarySequence } from "../../lib/document-number";
+import { monthKeyFromJalaliDate } from "@/lib/month-key";
 
 type Row = {
   id: number;
@@ -146,13 +147,41 @@ export default function InvoiceBuilderPage() {
     setMessage("تغییرات ذخیره‌نشده لغو شد.");
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     const draft = snapshot();
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    setSavedSnapshot(draft);
-    setHasLocalDraft(true);
-    setIsEditing(false);
-    setMessage("فاکتور در این دستگاه ذخیره شد.");
+    const monthKey = monthKeyFromJalaliDate(issueDate);
+    if (!monthKey) {
+      setMessage("تاریخ صدور معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "invoice",
+          document_number: invoiceNo,
+          issued_at: issueDate,
+          month_key: monthKey,
+          status,
+          title,
+          total_amount: total,
+          total_days: 0,
+          payload_json: draft,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || "ذخیره فاکتور ناموفق بود");
+
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      setSavedSnapshot(draft);
+      setHasLocalDraft(true);
+      setIsEditing(false);
+      setMessage("فاکتور در D1 ذخیره شد.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "ذخیره فاکتور ناموفق بود");
+    }
   };
 
   const updateSignature = (patch: Partial<SignatureData>) =>
