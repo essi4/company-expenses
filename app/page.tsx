@@ -55,13 +55,20 @@ export default function DashboardPage() {
       }
     })();
 
-    const years = Array.from(new Set(months.map((month) => String(month.month_key).slice(0, 4)))).sort((a, b) => Number(b) - Number(a));
-  const visibleMonths = selectedYear ? months.filter((month) => String(month.month_key).startsWith(`${selectedYear}-`)) : months;
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const years = Array.from(new Set(months.map((month) => String(month.month_key).slice(0, 4)))).sort((a, b) => Number(b) - Number(a));
+  const visibleMonths = selectedYear
+    ? months.filter((month) => String(month.month_key).startsWith(`${selectedYear}-`))
+    : months;
   const yearInvoiceCount = visibleMonths.reduce((sum, month) => sum + month.invoice_count, 0);
   const yearMissionCount = visibleMonths.reduce((sum, month) => sum + month.mission_count, 0);
   const yearTotalAmount = visibleMonths.reduce((sum, month) => sum + month.total_amount, 0);
   const yearTotalDays = visibleMonths.reduce((sum, month) => sum + month.total_days, 0);
-  const yearLabel = (year: string) => year.replace(/\\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
+  const yearLabel = (year: string) => year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 
   return () => {
       cancelled = true;
