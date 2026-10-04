@@ -57,6 +57,7 @@ export async function GET() {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    console.error("[reports/months] failed", error);
     return NextResponse.json(
       {
         success: false,
