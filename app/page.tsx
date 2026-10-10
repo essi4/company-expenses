@@ -21,6 +21,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [invoiceYear, setInvoiceYear] = useState("1405");
+  const [invoiceMonth, setInvoiceMonth] = useState("7");
+  const [missionYear, setMissionYear] = useState("1405");
+  const [missionMonth, setMissionMonth] = useState("7");
+  const jalaliMonths = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+  const formYears = Array.from({ length: 26 }, (_, index) => String(1390 + index));
+  const persianDigits = (value: string) => value.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,130 +78,66 @@ export default function DashboardPage() {
   const yearLabel = (year: string) => year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
-        <header className="mb-6 rounded-3xl bg-slate-900 p-6 text-white shadow-sm">
-          <p className="text-sm font-bold text-slate-300">داشبورد مالی و عملیاتی</p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+    <main dir="rtl" className="min-h-screen bg-gradient-to-b from-slate-50 to-cyan-50/40 text-slate-900">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        <header className="relative mb-6 overflow-hidden rounded-[2rem] bg-gradient-to-l from-slate-950 via-cyan-950 to-teal-800 p-6 text-white shadow-xl shadow-cyan-950/10 sm:p-8">
+          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-cyan-100">داشبورد مالی و عملیاتی</p>
+          <div className="relative z-10 mt-1 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black">{company?.name || "شرکت"}</h1>
-              <p className="mt-1 text-sm text-slate-300">گزارش‌ها بر اساس ماه دسته‌بندی شده‌اند.</p>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Alborz — سامانه مدیریت مالی</h1>
+              <p className="mt-2 text-sm leading-7 text-cyan-100/85">نمای یکپارچهٔ هزینه‌ها، فاکتورها و عملکرد مأموریت‌ها در هر ماه</p>
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="rounded-xl bg-white/10 px-4 py-2 text-sm font-bold ring-1 ring-white/15"
+              className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold backdrop-blur transition hover:bg-white/15"
             >
               ↻ بروزرسانی
             </button>
           </div>
         </header>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-2">
-          <a href="/invoice-builder" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5">
-            <div className="text-2xl">🧾</div>
-            <h2 className="mt-2 text-lg font-black">ساخت فاکتور</h2>
-            <p className="mt-1 text-sm text-slate-500">ثبت و چاپ فاکتور هزینه‌های اجرایی</p>
-          </a>
-          <a href="/mission-report" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5">
-            <div className="text-2xl">🧭</div>
-            <h2 className="mt-2 text-lg font-black">گزارش مأموریت</h2>
-            <p className="mt-1 text-sm text-slate-500">ثبت و چاپ گزارش نفر-روز</p>
-          </a>
-        </section>
-
-        <section>
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black">گزارش‌های ماهانه</h2>
-              <p className="text-xs text-slate-500">ابتدا سال را انتخاب کن، سپس ماه موردنظر را باز کن.</p>
+        <section className="mb-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-lg sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-3xl ring-1 ring-teal-100">🧾</div>
+              <div><h2 className="text-lg font-black">ساخت فاکتور</h2><p className="mt-1 text-sm text-slate-500">ثبت و چاپ فاکتور هزینه‌های اجرایی</p></div>
             </div>
-            <label className="flex items-center gap-2 text-sm font-black">
-              <span className="text-slate-500">سال</span>
-              <select
-                value={selectedYear}
-                onChange={(event) => setSelectedYear(event.target.value)}
-                disabled={years.length === 0}
-                className="min-w-28 rounded-xl bg-white px-4 py-2.5 text-sm font-black shadow-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-slate-400"
-                aria-label="انتخاب سال"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>{yearLabel(year)}</option>
-                ))}
-              </select>
-            </label>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">سال فاکتور</span>
+                <select value={invoiceYear} onChange={(event) => setInvoiceYear(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-teal-400" aria-label="سال فاکتور">
+                  {formYears.map((year) => <option key={year} value={year}>{persianDigits(year)}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">ماه فاکتور</span>
+                <select value={invoiceMonth} onChange={(event) => setInvoiceMonth(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-teal-400" aria-label="ماه فاکتور">
+                  {jalaliMonths.map((month, index) => <option key={month} value={String(index + 1)}>{month}</option>)}
+                </select>
+              </label>
+            </div>
+            <a href={`/invoice-builder?year=${invoiceYear}&month=${invoiceMonth}`} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white transition hover:bg-teal-800">ورود به ساخت فاکتور <span>←</span></a>
           </div>
-
-          {error && <div className="mb-4 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>}
-
-          {loading ? (
-            <div className="rounded-2xl bg-white p-6 text-center text-sm text-slate-500 ring-1 ring-slate-200">در حال دریافت گزارش‌ها…</div>
-          ) : months.length === 0 ? (
-            <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-              <div className="text-3xl">📅</div>
-              <h3 className="mt-3 font-black">هنوز گزارشی ثبت نشده</h3>
-              <p className="mt-1 text-sm text-slate-500">اولین فاکتور یا گزارش مأموریت را ثبت کن.</p>
+          <div className="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm transition hover:border-sky-200 hover:shadow-lg sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-3xl ring-1 ring-sky-100">🧭</div>
+              <div><h2 className="text-lg font-black">گزارش مأموریت</h2><p className="mt-1 text-sm text-slate-500">ثبت و چاپ گزارش نفر-روز</p></div>
             </div>
-          ) : (
-            <>
-              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                  <div className="text-xs font-bold text-slate-500">فاکتور</div>
-                  <div className="mt-1 font-black">{yearInvoiceCount.toLocaleString("fa-IR")}</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                  <div className="text-xs font-bold text-slate-500">مأموریت</div>
-                  <div className="mt-1 font-black">{yearMissionCount.toLocaleString("fa-IR")}</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                  <div className="text-xs font-bold text-slate-500">مبلغ فاکتورها</div>
-                  <div className="mt-1 font-black text-emerald-700">{money(yearTotalAmount)} تومان</div>
-                </div>
-                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
-                  <div className="text-xs font-bold text-slate-500">نفر-روز</div>
-                  <div className="mt-1 font-black text-sky-700">{yearTotalDays.toLocaleString("fa-IR")}</div>
-                </div>
-              </div>
-
-              {visibleMonths.length === 0 ? (
-                <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-slate-200">
-                  <div className="text-3xl">📅</div>
-                  <h3 className="mt-3 font-black">برای سال {yearLabel(selectedYear)} گزارشی ثبت نشده</h3>
-                  <p className="mt-1 text-sm text-slate-500">از همین سال اولین فاکتور یا گزارش مأموریت را ثبت کن.</p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {visibleMonths.map((month) => (
-                    <a
-                      key={month.month_key}
-                      href={"/month/" + month.month_key}
-                      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-slate-300"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-xl font-black">{month.label}</h3>
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
-                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600">
-                              {month.invoice_count.toLocaleString("fa-IR")} فاکتور
-                            </span>
-                            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-slate-600">
-                              {month.mission_count.toLocaleString("fa-IR")} مأموریت
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-left">
-                          <div className="text-xs font-bold text-slate-500">مبلغ فاکتورها</div>
-                          <div className="font-black text-emerald-700">{money(month.total_amount)} تومان</div>
-                          <div className="mt-2 text-xs font-bold text-slate-500">مجموع مأموریت</div>
-                          <div className="font-black text-sky-700">{month.total_days.toLocaleString("fa-IR")} نفر-روز</div>
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">سال گزارش مأموریت</span>
+                <select value={missionYear} onChange={(event) => setMissionYear(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-sky-400" aria-label="سال گزارش مأموریت">
+                  {formYears.map((year) => <option key={year} value={year}>{persianDigits(year)}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">ماه گزارش مأموریت</span>
+                <select value={missionMonth} onChange={(event) => setMissionMonth(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-sky-400" aria-label="ماه گزارش مأموریت">
+                  {jalaliMonths.map((month, index) => <option key={month} value={String(index + 1)}>{month}</option>)}
+                </select>
+              </label>
+            </div>
+            <a href={`/mission-report?month=${missionYear}-${missionMonth.padStart(2, "0")}`} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-3 font-bold text-white transition hover:bg-sky-800">ورود به گزارش مأموریت <span>←</span></a>
+          </div>
         </section>
+
+
       </div>
     </main>
   );

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateMissionTotals, type MissionLocation, type MissionRow, type MissionStatus } from "../../lib/mission";
-import { monthKeyFromJalaliDate } from "@/lib/month-key";
 
 type SignatureData = { name: string; image: string; signedAt: string };
 type SignatureMap = { preparer: SignatureData; approver: SignatureData; approval: SignatureData };
@@ -52,7 +51,7 @@ const initialRows: MissionRow[] = [
 ];
 
 const defaultDraft: Draft = {
-  company: "شرکت عرضه ساره لب رود",
+  company: "Alborz",
   subtitle: "مدیریت پروژه و عملیات",
   documentNumber: "OT-1405-05",
   issuedAt: "۱۴۰۵/۰۶/۰۳",
@@ -64,6 +63,19 @@ const defaultDraft: Draft = {
 };
 
 const money = (value: number) => new Intl.NumberFormat("fa-IR").format(value);
+const jalaliMonthNames = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))).replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
+const toPersianDigits = (value: string) => value.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+const parseMonthSelection = (value: string, issuedAt: string) => {
+  const normalized = normalizeDigits(value);
+  const monthIndex = jalaliMonthNames.findIndex((name) => normalized.includes(name));
+  const yearMatch = normalized.match(/13\d{2}|14\d{2}/);
+  const dateMatch = normalizeDigits(issuedAt).match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+  return {
+    year: yearMatch?.[0] ?? dateMatch?.[1] ?? "1405",
+    monthIndex: monthIndex >= 0 ? monthIndex : Math.min(11, Math.max(0, Number(dateMatch?.[2] ?? 7) - 1)),
+  };
+};
 const emptyLocation = (): MissionLocation => ({ name: "", days: 0 });
 
 export default function MissionReportPage() {
@@ -84,6 +96,10 @@ export default function MissionReportPage() {
   const [savedDocumentId, setSavedDocumentId] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const reportRef = useRef<HTMLElement>(null);
+  const monthSelection = parseMonthSelection(month, issuedAt);
+  const updateReportMonth = (year: string, monthIndex: number) => {
+    setMonth(`${jalaliMonthNames[monthIndex]} ${toPersianDigits(year)}`);
+  };
 
   useEffect(() => {
     const id = searchParams.get("id");
@@ -123,9 +139,7 @@ export default function MissionReportPage() {
       const index = Number(monthNumber) - 1;
       const names = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
       if (/^14\d{2}$/.test(year) && index >= 0 && index < 12) {
-        const label = `${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`;
-        setMonth(label);
-        setIssuedAt(`${year}/${String(Number(monthNumber)).padStart(2, "0")}/01`);
+        setMonth(`${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`);
       }
       setHasLocalDraft(false);
       return;
@@ -178,10 +192,13 @@ export default function MissionReportPage() {
 
   const saveDraft = async () => {
     const draft = snapshot();
-    const requestedMonth = searchParams.get("month");
-    const monthKey = requestedMonth && /^14\\d{2}-\\d{2}$/.test(requestedMonth) ? requestedMonth : monthKeyFromJalaliDate(issuedAt);
+    const selectedYear = normalizeDigits(monthSelection.year);
+    const selectedMonth = monthSelection.monthIndex + 1;
+    const monthKey = /^14\d{2}$/.test(selectedYear) && selectedMonth >= 1 && selectedMonth <= 12
+      ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`
+      : "";
     if (!monthKey) {
-      setMessage("تاریخ تنظیم معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
+      setMessage("سال و ماه گزارش را درست انتخاب کنید.");
       return;
     }
 
@@ -224,11 +241,12 @@ export default function MissionReportPage() {
 
   const updateLocation = (rowId: number, index: number, patch: Partial<MissionLocation>) => {
     setRows((current) =>
-      current.map((row) =>
-        row.id === rowId
-          ? { ...row, locations: row.locations.map((location, i) => (i === index ? { ...location, ...patch } : location)) }
-          : row,
-      ),
+      current.map((row) => {
+        if (row.id !== rowId) return row;
+        const locations = row.locations.map((location, i) => (i === index ? { ...location, ...patch } : location));
+        const days = locations.reduce((sum, location) => sum + Math.max(0, Math.trunc(Number(location.days) || 0)), 0);
+        return { ...row, locations, days };
+      }),
     );
   };
 
@@ -238,7 +256,12 @@ export default function MissionReportPage() {
 
   const removeLocation = (rowId: number, index: number) => {
     setRows((current) =>
-      current.map((row) => (row.id === rowId ? { ...row, locations: row.locations.filter((_, i) => i !== index) } : row)),
+      current.map((row) => {
+        if (row.id !== rowId) return row;
+        const locations = row.locations.filter((_, i) => i !== index);
+        const days = locations.reduce((sum, location) => sum + Math.max(0, Math.trunc(Number(location.days) || 0)), 0);
+        return { ...row, locations, days };
+      }),
     );
   };
 
@@ -304,7 +327,7 @@ export default function MissionReportPage() {
       <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div>
-            <p className="text-xs font-bold text-slate-500">مدیریت عملیات شرکت</p>
+            <p className="text-xs font-bold text-slate-500">مدیریت عملیات Alborz</p>
             <h1 className="text-2xl font-black">گزارش مأموریت</h1>
             <p className="mt-1 text-xs text-slate-500">{hasLocalDraft ? "پیش‌نویس محلی موجود است" : "گزارش جدید"}{message ? ` · ${message}` : ""}</p>
           </div>
@@ -327,13 +350,39 @@ export default function MissionReportPage() {
           </div>
         </div>
 
+        <section className="mb-4 grid gap-3 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm ring-1 ring-slate-200 print:hidden sm:grid-cols-2">
+          <label className="block">
+            <span className="label">سال گزارش</span>
+            <select
+              value={monthSelection.year}
+              onChange={(e) => updateReportMonth(e.target.value, monthSelection.monthIndex)}
+              className="input"
+              aria-label="سال گزارش مأموریت"
+            >
+              {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
+                <option key={year} value={year}>{toPersianDigits(year)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">ماه گزارش</span>
+            <select
+              value={String(monthSelection.monthIndex)}
+              onChange={(e) => updateReportMonth(monthSelection.year, Number(e.target.value))}
+              className="input"
+              aria-label="ماه گزارش مأموریت"
+            >
+              {jalaliMonthNames.map((name, index) => <option key={name} value={index}>{name}</option>)}
+            </select>
+          </label>
+        </section>
+
         {isEditing && (
           <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
             <Field label="نام شرکت" value={company} onChange={setCompany} />
             <Field label="زیرعنوان" value={subtitle} onChange={setSubtitle} />
             <Field label="شماره سند" value={documentNumber} onChange={setDocumentNumber} />
             <Field label="تاریخ تنظیم" value={issuedAt} onChange={setIssuedAt} />
-            <Field label="ماه کارکرد" value={month} onChange={setMonth} />
             <label className="block sm:col-span-2 lg:col-span-4">
               <span className="label">توضیحات / یادداشت</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} className="input min-h-20 resize-y" placeholder="اگر لازم است توضیح یا مورد دیگری به گزارش مأموریت اضافه شود، اینجا بنویسید." />
@@ -394,7 +443,7 @@ export default function MissionReportPage() {
                       {isEditing ? <input value={row.personName} onChange={(e) => updateRow(row.id, { personName: e.target.value })} className="input" placeholder="نام و نام خانوادگی" /> : <span className="block p-1">{row.personName || "—"}</span>}
                     </td>
                     <td data-label="مدت (روز)" className="border p-1 align-top">
-                      {isEditing ? <input inputMode="numeric" type="number" min={0} value={row.days} onChange={(e) => updateRow(row.id, { days: Math.max(0, Number(e.target.value) || 0) })} className="input text-center" /> : <span className="block p-1 text-center">{money(row.days)} روز</span>}
+                      {isEditing ? <input inputMode="numeric" type="number" min={0} value={row.days} readOnly className="input bg-slate-50 text-center" aria-label="جمع روزهای محل‌های مأموریت" /> : <span className="block p-1 text-center">{money(row.days)} روز</span>}
                     </td>
                     <td data-label="محل مأموریت(ها)" className="border p-1 align-top">
                       <div className="space-y-2">

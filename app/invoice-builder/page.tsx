@@ -6,7 +6,6 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateInvoiceTotals, type InvoiceEntry, type InvoiceStatus } from "../../lib/invoice";
 import { generateDocumentNumber, nextTemporarySequence } from "../../lib/document-number";
-import { monthKeyFromJalaliDate } from "@/lib/month-key";
 
 type Row = {
   id: number;
@@ -22,6 +21,8 @@ type Draft = {
   title: string;
   invoiceNo: string;
   issueDate: string;
+  reportYear?: string;
+  reportMonth?: string;
   received: string;
   status: InvoiceStatus;
   buyer: string;
@@ -59,7 +60,7 @@ const initialRows: Row[] = [
 ];
 
 const defaultDraft: Draft = {
-  company: "شرکت عرضه ساره لب رود",
+  company: "Alborz",
   title: "صورت‌حساب و فاکتور هزینه‌های اجرایی و تجهیزات",
   invoiceNo: "ASL-1405-083",
   issueDate: "۱۴۰۵/۰۷/۱۰",
@@ -79,6 +80,8 @@ export default function InvoiceBuilderPage() {
   const [title, setTitle] = useState(defaultDraft.title);
   const [invoiceNo, setInvoiceNo] = useState(defaultDraft.invoiceNo);
   const [issueDate, setIssueDate] = useState(defaultDraft.issueDate);
+  const [reportYear, setReportYear] = useState("1405");
+  const [reportMonth, setReportMonth] = useState("7");
   const [received, setReceived] = useState(defaultDraft.received);
   const [status, setStatus] = useState<InvoiceStatus>(defaultDraft.status);
   const [buyer, setBuyer] = useState(defaultDraft.buyer);
@@ -91,6 +94,14 @@ export default function InvoiceBuilderPage() {
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState(false);
   const invoiceRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (documentId) return;
+    const requestedYear = searchParams.get("year");
+    const requestedMonth = searchParams.get("month");
+    if (requestedYear && /^(13|14)\\d{2}$/.test(requestedYear)) setReportYear(requestedYear);
+    if (requestedMonth && /^(?:[1-9]|1[0-2])$/.test(requestedMonth)) setReportMonth(requestedMonth);
+  }, [documentId, searchParams]);
 
   useEffect(() => {
     if (documentId) {
@@ -108,6 +119,9 @@ export default function InvoiceBuilderPage() {
           setTitle(draft.title ?? doc.title ?? "");
           setInvoiceNo(draft.invoiceNo ?? doc.document_number ?? "");
           setIssueDate(draft.issueDate ?? doc.issued_at ?? "");
+          const legacyDate = digits(draft.issueDate ?? doc.issued_at ?? "۱۴۰۵/۰۷/۱۰").match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+          setReportYear(String(draft.reportYear ?? legacyDate?.[1] ?? "1405"));
+          setReportMonth(String(draft.reportMonth ?? legacyDate?.[2] ?? "7"));
           setReceived(draft.received ?? "");
           setStatus(draft.status ?? doc.status ?? "draft");
           setBuyer(draft.buyer ?? "");
@@ -134,6 +148,9 @@ export default function InvoiceBuilderPage() {
       setTitle(draft.title);
       setInvoiceNo(draft.invoiceNo);
       setIssueDate(draft.issueDate);
+      const legacyDate = digits(draft.issueDate ?? "۱۴۰۵/۰۷/۱۰").match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+      setReportYear(String(draft.reportYear ?? legacyDate?.[1] ?? "1405"));
+      setReportMonth(String(draft.reportMonth ?? legacyDate?.[2] ?? "7"));
       setReceived(draft.received);
       setStatus(draft.status);
       setBuyer(draft.buyer);
@@ -153,6 +170,8 @@ export default function InvoiceBuilderPage() {
     title,
     invoiceNo,
     issueDate,
+    reportYear,
+    reportMonth,
     received,
     status,
     buyer,
@@ -173,6 +192,9 @@ export default function InvoiceBuilderPage() {
     setTitle(draft.title);
     setInvoiceNo(draft.invoiceNo);
     setIssueDate(draft.issueDate);
+    const legacyDate = digits(draft.issueDate ?? "۱۴۰۵/۰۷/۱۰").match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+    setReportYear(String(draft.reportYear ?? legacyDate?.[1] ?? "1405"));
+    setReportMonth(String(draft.reportMonth ?? legacyDate?.[2] ?? "7"));
     setReceived(draft.received);
     setStatus(draft.status);
     setBuyer(draft.buyer);
@@ -185,9 +207,13 @@ export default function InvoiceBuilderPage() {
 
   const saveDraft = async () => {
     const draft = snapshot();
-    const monthKey = monthKeyFromJalaliDate(issueDate);
+    const year = digits(reportYear).trim();
+    const monthNumber = Number(digits(reportMonth));
+    const monthKey = /^14\d{2}$/.test(year) && Number.isInteger(monthNumber) && monthNumber >= 1 && monthNumber <= 12
+      ? `${year}-${String(monthNumber).padStart(2, "0")}`
+      : "";
     if (!monthKey) {
-      setMessage("تاریخ صدور معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
+      setMessage("سال و ماه گزارش را درست انتخاب کنید.");
       return;
     }
 
@@ -326,7 +352,7 @@ export default function InvoiceBuilderPage() {
       <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div>
-            <p className="text-xs font-black tracking-wide text-[#0f766e]">مدیریت مالی شرکت</p>
+            <p className="text-xs font-black tracking-wide text-[#0f766e]">مدیریت مالی Alborz</p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#102a43]">سازنده فاکتور</h1>
             <p className="mt-1 text-xs text-slate-500">
               {hasLocalDraft ? "پیش‌نویس محلی موجود است" : "فاکتور جدید"}
@@ -381,6 +407,25 @@ export default function InvoiceBuilderPage() {
             </button>
           </div>
         </div>
+
+        <section className="mb-4 grid gap-3 rounded-2xl border border-teal-100 bg-white p-4 shadow-sm ring-1 ring-slate-200 print:hidden sm:grid-cols-2">
+          <label className="block">
+            <span className="label">سال گزارش</span>
+            <select value={reportYear} onChange={(e) => setReportYear(e.target.value)} className="input" aria-label="سال گزارش فاکتور">
+              {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
+                <option key={year} value={year}>{year.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">ماه گزارش</span>
+            <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="input" aria-label="ماه گزارش فاکتور">
+              {["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"].map((name, index) => (
+                <option key={name} value={String(index + 1)}>{name}</option>
+              ))}
+            </select>
+          </label>
+        </section>
 
         {isEditing && (
           <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
