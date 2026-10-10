@@ -111,6 +111,16 @@ export default function InvoiceBuilderPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const year = params.get("year");
+    const month = params.get("month");
+    if (!year || !month || !/^\\d{4}$/.test(year) || !/^\\d{1,2}$/.test(month)) return;
+    const monthNumber = Number(month);
+    if (monthNumber < 1 || monthNumber > 12) return;
+    setIssueDate(`${year}/${String(monthNumber).padStart(2, "0")}/01`);
+  }, []);
+
   const snapshot = (): Draft => ({
     company,
     title,
