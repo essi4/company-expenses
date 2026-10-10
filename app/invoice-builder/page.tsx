@@ -59,7 +59,7 @@ const initialRows: Row[] = [
 ];
 
 const defaultDraft: Draft = {
-  company: "شرکت عرضه ساره لب رود",
+  company: "Alborz",
   title: "صورت‌حساب و فاکتور هزینه‌های اجرایی و تجهیزات",
   invoiceNo: "ASL-1405-083",
   issueDate: "۱۴۰۵/۰۷/۱۰",
@@ -326,7 +326,7 @@ export default function InvoiceBuilderPage() {
       <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div>
-            <p className="text-xs font-black tracking-wide text-[#0f766e]">مدیریت مالی شرکت</p>
+            <p className="text-xs font-black tracking-wide text-[#0f766e]">مدیریت مالی Alborz</p>
             <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#102a43]">سازنده فاکتور</h1>
             <p className="mt-1 text-xs text-slate-500">
               {hasLocalDraft ? "پیش‌نویس محلی موجود است" : "فاکتور جدید"}

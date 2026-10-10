@@ -29,7 +29,17 @@ export interface MissionTotals {
 }
 
 export function calculateMissionTotals(rows: MissionRow[]): MissionTotals {
-  const totalPersonDays = rows.reduce((sum, row) => sum + Math.max(0, Math.trunc(row.days || 0)), 0);
+  const totalPersonDays = rows.reduce((sum, row) => {
+    const locationDays = (row.locations ?? []).reduce(
+      (locationSum, location) => locationSum + Math.max(0, Math.trunc(Number(location.days) || 0)),
+      0,
+    );
+    // Preserve older records that have a row-level duration but no usable location breakdown.
+    const rowDays = locationDays > 0 || (row.locations?.length ?? 0) === 0
+      ? locationDays
+      : Math.max(0, Math.trunc(Number(row.days) || 0));
+    return sum + rowDays;
+  }, 0);
   return {
     totalDays: totalPersonDays,
     totalPersonDays,
