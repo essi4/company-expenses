@@ -96,6 +96,14 @@ export default function InvoiceBuilderPage() {
   const invoiceRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    if (documentId) return;
+    const requestedYear = searchParams.get("year");
+    const requestedMonth = searchParams.get("month");
+    if (requestedYear && /^(13|14)\\d{2}$/.test(requestedYear)) setReportYear(requestedYear);
+    if (requestedMonth && /^(?:[1-9]|1[0-2])$/.test(requestedMonth)) setReportMonth(requestedMonth);
+  }, [documentId, searchParams]);
+
+  useEffect(() => {
     if (documentId) {
       setSavedDocumentId(documentId);
       (async () => {

@@ -21,6 +21,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [invoiceYear, setInvoiceYear] = useState("1405");
+  const [invoiceMonth, setInvoiceMonth] = useState("7");
+  const [missionYear, setMissionYear] = useState("1405");
+  const [missionMonth, setMissionMonth] = useState("7");
+  const jalaliMonths = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+  const formYears = Array.from({ length: 26 }, (_, index) => String(1390 + index));
+  const persianDigits = (value: string) => value.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +84,7 @@ export default function DashboardPage() {
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-cyan-100">داشبورد مالی و عملیاتی</p>
           <div className="relative z-10 mt-1 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{company?.name || "شرکت"}</h1>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Alborz — سامانه مدیریت مالی</h1>
               <p className="mt-2 text-sm leading-7 text-cyan-100/85">نمای یکپارچهٔ هزینه‌ها، فاکتورها و عملکرد مأموریت‌ها در هر ماه</p>
             </div>
             <button
@@ -90,16 +97,44 @@ export default function DashboardPage() {
         </header>
 
         <section className="mb-8 grid gap-4 sm:grid-cols-2">
-          <a href="/invoice-builder" className="group flex items-center gap-4 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-teal-200 hover:shadow-lg hover:shadow-teal-900/5 sm:p-6">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-3xl ring-1 ring-teal-100">🧾</div>
-            <h2 className="mt-2 text-lg font-black">ساخت فاکتور</h2>
-            <p className="mt-1 text-sm text-slate-500">ثبت و چاپ فاکتور هزینه‌های اجرایی</p>
-          </a>
-          <a href="/mission-report" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-md transition hover:-translate-y-0.5">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-3xl ring-1 ring-sky-100">🧭</div>
-            <h2 className="mt-2 text-lg font-black">گزارش مأموریت</h2>
-            <p className="mt-1 text-sm text-slate-500">ثبت و چاپ گزارش نفر-روز</p>
-          </a>
+          <div className="rounded-3xl border border-teal-100 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-lg sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-3xl ring-1 ring-teal-100">🧾</div>
+              <div><h2 className="text-lg font-black">ساخت فاکتور</h2><p className="mt-1 text-sm text-slate-500">ثبت و چاپ فاکتور هزینه‌های اجرایی</p></div>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">سال فاکتور</span>
+                <select value={invoiceYear} onChange={(event) => setInvoiceYear(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-teal-400" aria-label="سال فاکتور">
+                  {formYears.map((year) => <option key={year} value={year}>{persianDigits(year)}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">ماه فاکتور</span>
+                <select value={invoiceMonth} onChange={(event) => setInvoiceMonth(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-teal-400" aria-label="ماه فاکتور">
+                  {jalaliMonths.map((month, index) => <option key={month} value={String(index + 1)}>{month}</option>)}
+                </select>
+              </label>
+            </div>
+            <a href={`/invoice-builder?year=${invoiceYear}&month=${invoiceMonth}`} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-3 font-bold text-white transition hover:bg-teal-800">ورود به ساخت فاکتور <span>←</span></a>
+          </div>
+          <div className="rounded-3xl border border-sky-100 bg-white p-5 shadow-sm transition hover:border-sky-200 hover:shadow-lg sm:p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-3xl ring-1 ring-sky-100">🧭</div>
+              <div><h2 className="text-lg font-black">گزارش مأموریت</h2><p className="mt-1 text-sm text-slate-500">ثبت و چاپ گزارش نفر-روز</p></div>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">سال گزارش مأموریت</span>
+                <select value={missionYear} onChange={(event) => setMissionYear(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-sky-400" aria-label="سال گزارش مأموریت">
+                  {formYears.map((year) => <option key={year} value={year}>{persianDigits(year)}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold"><span className="mb-1.5 block text-slate-500">ماه گزارش مأموریت</span>
+                <select value={missionMonth} onChange={(event) => setMissionMonth(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-black outline-none focus:border-sky-400" aria-label="ماه گزارش مأموریت">
+                  {jalaliMonths.map((month, index) => <option key={month} value={String(index + 1)}>{month}</option>)}
+                </select>
+              </label>
+            </div>
+            <a href={`/mission-report?month=${missionYear}-${missionMonth.padStart(2, "0")}`} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 py-3 font-bold text-white transition hover:bg-sky-800">ورود به گزارش مأموریت <span>←</span></a>
+          </div>
         </section>
 
         <section>
