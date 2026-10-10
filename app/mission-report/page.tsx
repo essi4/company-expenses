@@ -66,12 +66,12 @@ const defaultDraft: Draft = {
 const money = (value: number) => new Intl.NumberFormat("fa-IR").format(value);
 const jalaliMonthNames = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
 const normalizeDigits = (value: string) => value.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))).replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
-const toPersianDigits = (value: string) => value.replace(/\\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
+const toPersianDigits = (value: string) => value.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)]);
 const parseMonthSelection = (value: string, issuedAt: string) => {
   const normalized = normalizeDigits(value);
   const monthIndex = jalaliMonthNames.findIndex((name) => normalized.includes(name));
-  const yearMatch = normalized.match(/13\\d{2}|14\\d{2}/);
-  const dateMatch = normalizeDigits(issuedAt).match(/(13\\d{2}|14\\d{2})[/-](\\d{1,2})/);
+  const yearMatch = normalized.match(/13\d{2}|14\d{2}/);
+  const dateMatch = normalizeDigits(issuedAt).match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
   return {
     year: yearMatch?.[0] ?? dateMatch?.[1] ?? "1405",
     monthIndex: monthIndex >= 0 ? monthIndex : Math.min(11, Math.max(0, Number(dateMatch?.[2] ?? 7) - 1)),
@@ -197,7 +197,7 @@ export default function MissionReportPage() {
   const saveDraft = async () => {
     const draft = snapshot();
     const requestedMonth = searchParams.get("month");
-    const monthKey = requestedMonth && /^14\\d{2}-\\d{2}$/.test(requestedMonth) ? requestedMonth : monthKeyFromJalaliDate(issuedAt);
+    const monthKey = requestedMonth && /^14\d{2}-\d{2}$/.test(requestedMonth) ? requestedMonth : monthKeyFromJalaliDate(issuedAt);
     if (!monthKey) {
       setMessage("تاریخ تنظیم معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
       return;
