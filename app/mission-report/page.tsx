@@ -350,36 +350,39 @@ export default function MissionReportPage() {
           </div>
         </div>
 
+        <section className="mb-4 grid gap-3 rounded-2xl border border-amber-100 bg-white p-4 shadow-sm ring-1 ring-slate-200 print:hidden sm:grid-cols-2">
+          <label className="block">
+            <span className="label">سال گزارش</span>
+            <select
+              value={monthSelection.year}
+              onChange={(e) => updateReportMonth(e.target.value, monthSelection.monthIndex)}
+              className="input"
+              aria-label="سال گزارش مأموریت"
+            >
+              {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
+                <option key={year} value={year}>{toPersianDigits(year)}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">ماه گزارش</span>
+            <select
+              value={String(monthSelection.monthIndex)}
+              onChange={(e) => updateReportMonth(monthSelection.year, Number(e.target.value))}
+              className="input"
+              aria-label="ماه گزارش مأموریت"
+            >
+              {jalaliMonthNames.map((name, index) => <option key={name} value={index}>{name}</option>)}
+            </select>
+          </label>
+        </section>
+
         {isEditing && (
           <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
             <Field label="نام شرکت" value={company} onChange={setCompany} />
             <Field label="زیرعنوان" value={subtitle} onChange={setSubtitle} />
             <Field label="شماره سند" value={documentNumber} onChange={setDocumentNumber} />
             <Field label="تاریخ تنظیم" value={issuedAt} onChange={setIssuedAt} />
-            <label className="block">
-              <span className="label">ماه گزارش</span>
-              <select
-                value={String(monthSelection.monthIndex)}
-                onChange={(e) => updateReportMonth(monthSelection.year, Number(e.target.value))}
-                className="input"
-                aria-label="ماه گزارش مأموریت"
-              >
-                {jalaliMonthNames.map((name, index) => <option key={name} value={index}>{name}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="label">سال گزارش</span>
-              <select
-                value={monthSelection.year}
-                onChange={(e) => updateReportMonth(e.target.value, monthSelection.monthIndex)}
-                className="input"
-                aria-label="سال گزارش مأموریت"
-              >
-                {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
-                  <option key={year} value={year}>{toPersianDigits(year)}</option>
-                ))}
-              </select>
-            </label>
             <label className="block sm:col-span-2 lg:col-span-4">
               <span className="label">توضیحات / یادداشت</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} className="input min-h-20 resize-y" placeholder="اگر لازم است توضیح یا مورد دیگری به گزارش مأموریت اضافه شود، اینجا بنویسید." />
