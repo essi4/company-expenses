@@ -394,7 +394,7 @@ export default function MissionReportPage() {
                       {isEditing ? <input value={row.personName} onChange={(e) => updateRow(row.id, { personName: e.target.value })} className="input" placeholder="نام و نام خانوادگی" /> : <span className="block p-1">{row.personName || "—"}</span>}
                     </td>
                     <td data-label="مدت (روز)" className="border p-1 align-top">
-                      {isEditing ? <input inputMode="numeric" type="number" min={0} value={row.days} onChange={(e) => updateRow(row.id, { days: Math.max(0, Number(e.target.value) || 0) })} className="input text-center" /> : <span className="block p-1 text-center">{money(row.days)} روز</span>}
+                      <span className="block p-1 text-center">{money(row.locations.reduce((sum, location) => sum + Math.max(0, Math.trunc(location.days || 0)), 0))} روز</span>
                     </td>
                     <td data-label="محل مأموریت(ها)" className="border p-1 align-top">
                       <div className="space-y-2">
@@ -546,6 +546,7 @@ function SignaturePad({
     const ratio = Math.max(1, window.devicePixelRatio || 1);
     const width = Math.max(280, canvas.clientWidth);
     const height = 130;
+    // Resizing the canvas clears any stale strokes before restoring saved data.
     canvas.width = width * ratio;
     canvas.height = height * ratio;
     const ctx = canvas.getContext("2d");
@@ -560,7 +561,7 @@ function SignaturePad({
       image.onload = () => ctx.drawImage(image, 0, 0, width, height);
       image.src = value.image;
     }
-  }, [editing]);
+  }, [editing, value.image]);
 
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
