@@ -400,6 +400,25 @@ export default function InvoiceBuilderPage() {
           </div>
         </div>
 
+        <section className="mb-4 grid gap-3 rounded-2xl border border-teal-100 bg-white p-4 shadow-sm ring-1 ring-slate-200 print:hidden sm:grid-cols-2">
+          <label className="block">
+            <span className="label">سال گزارش</span>
+            <select value={reportYear} onChange={(e) => setReportYear(e.target.value)} className="input" aria-label="سال گزارش فاکتور">
+              {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
+                <option key={year} value={year}>{year.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">ماه گزارش</span>
+            <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="input" aria-label="ماه گزارش فاکتور">
+              {["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"].map((name, index) => (
+                <option key={name} value={String(index + 1)}>{name}</option>
+              ))}
+            </select>
+          </label>
+        </section>
+
         {isEditing && (
           <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
             <label className="block">
@@ -414,22 +433,6 @@ export default function InvoiceBuilderPage() {
                   شماره جدید
                 </button>
               </div>
-            </label>
-            <label className="block">
-              <span className="label">سال گزارش</span>
-              <select value={reportYear} onChange={(e) => setReportYear(e.target.value)} className="input" aria-label="سال گزارش فاکتور">
-                {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
-                  <option key={year} value={year}>{year.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="label">ماه گزارش</span>
-              <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="input" aria-label="ماه گزارش فاکتور">
-                {["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"].map((name, index) => (
-                  <option key={name} value={String(index + 1)}>{name}</option>
-                ))}
-              </select>
             </label>
             <label className="block">
               <span className="label">تاریخ صدور</span>
