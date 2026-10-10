@@ -581,6 +581,23 @@ function Signature({
     onChange({ image: canvas.toDataURL("image/png"), signedAt: new Date().toLocaleString("fa-IR") });
   };
 
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (canvas && ctx) {
+      const ratio = Math.max(1, window.devicePixelRatio || 1);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#0f172a";
+    }
+    drawing.current = false;
+    onClear();
+  };
+
   return (
     <div className="text-center text-sm">
       <div className="font-bold">{label}</div>
@@ -589,7 +606,7 @@ function Signature({
           <canvas ref={canvasRef} className="mt-3 h-[130px] w-full touch-none rounded-lg border border-dashed border-slate-300 bg-white" onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} aria-label={"محل رسم امضای " + label} />
           <div className="mt-2 flex gap-2">
             <input value={value.name} onChange={(e) => onChange({ name: e.target.value })} className="input" placeholder="نام امضاکننده" />
-            <button type="button" onClick={onClear} className="rounded-lg px-3 py-2 font-bold text-red-600 ring-1 ring-slate-200">پاک‌کردن</button>
+            <button type="button" onClick={clearCanvas} className="rounded-lg px-3 py-2 font-bold text-red-600 ring-1 ring-slate-200">پاک‌کردن</button>
           </div>
         </>
       ) : (
