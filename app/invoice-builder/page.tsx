@@ -6,7 +6,6 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateInvoiceTotals, type InvoiceEntry, type InvoiceStatus } from "../../lib/invoice";
 import { generateDocumentNumber, nextTemporarySequence } from "../../lib/document-number";
-import { monthKeyFromJalaliDate } from "@/lib/month-key";
 
 type Row = {
   id: number;
@@ -22,6 +21,8 @@ type Draft = {
   title: string;
   invoiceNo: string;
   issueDate: string;
+  reportYear?: string;
+  reportMonth?: string;
   received: string;
   status: InvoiceStatus;
   buyer: string;
@@ -79,6 +80,8 @@ export default function InvoiceBuilderPage() {
   const [title, setTitle] = useState(defaultDraft.title);
   const [invoiceNo, setInvoiceNo] = useState(defaultDraft.invoiceNo);
   const [issueDate, setIssueDate] = useState(defaultDraft.issueDate);
+  const [reportYear, setReportYear] = useState("1405");
+  const [reportMonth, setReportMonth] = useState("7");
   const [received, setReceived] = useState(defaultDraft.received);
   const [status, setStatus] = useState<InvoiceStatus>(defaultDraft.status);
   const [buyer, setBuyer] = useState(defaultDraft.buyer);
@@ -108,6 +111,9 @@ export default function InvoiceBuilderPage() {
           setTitle(draft.title ?? doc.title ?? "");
           setInvoiceNo(draft.invoiceNo ?? doc.document_number ?? "");
           setIssueDate(draft.issueDate ?? doc.issued_at ?? "");
+          const legacyDate = digits(draft.issueDate ?? doc.issued_at ?? "۱۴۰۵/۰۷/۱۰").match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+          setReportYear(String(draft.reportYear ?? legacyDate?.[1] ?? "1405"));
+          setReportMonth(String(draft.reportMonth ?? legacyDate?.[2] ?? "7"));
           setReceived(draft.received ?? "");
           setStatus(draft.status ?? doc.status ?? "draft");
           setBuyer(draft.buyer ?? "");
@@ -134,6 +140,9 @@ export default function InvoiceBuilderPage() {
       setTitle(draft.title);
       setInvoiceNo(draft.invoiceNo);
       setIssueDate(draft.issueDate);
+      const legacyDate = digits(draft.issueDate ?? "۱۴۰۵/۰۷/۱۰").match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+      setReportYear(String(draft.reportYear ?? legacyDate?.[1] ?? "1405"));
+      setReportMonth(String(draft.reportMonth ?? legacyDate?.[2] ?? "7"));
       setReceived(draft.received);
       setStatus(draft.status);
       setBuyer(draft.buyer);
@@ -153,6 +162,8 @@ export default function InvoiceBuilderPage() {
     title,
     invoiceNo,
     issueDate,
+    reportYear,
+    reportMonth,
     received,
     status,
     buyer,
@@ -173,6 +184,9 @@ export default function InvoiceBuilderPage() {
     setTitle(draft.title);
     setInvoiceNo(draft.invoiceNo);
     setIssueDate(draft.issueDate);
+    const legacyDate = digits(draft.issueDate ?? "۱۴۰۵/۰۷/۱۰").match(/(13\d{2}|14\d{2})[/-](\d{1,2})/);
+    setReportYear(String(draft.reportYear ?? legacyDate?.[1] ?? "1405"));
+    setReportMonth(String(draft.reportMonth ?? legacyDate?.[2] ?? "7"));
     setReceived(draft.received);
     setStatus(draft.status);
     setBuyer(draft.buyer);
@@ -185,9 +199,13 @@ export default function InvoiceBuilderPage() {
 
   const saveDraft = async () => {
     const draft = snapshot();
-    const monthKey = monthKeyFromJalaliDate(issueDate);
+    const year = digits(reportYear).trim();
+    const monthNumber = Number(digits(reportMonth));
+    const monthKey = /^14\d{2}$/.test(year) && Number.isInteger(monthNumber) && monthNumber >= 1 && monthNumber <= 12
+      ? `${year}-${String(monthNumber).padStart(2, "0")}`
+      : "";
     if (!monthKey) {
-      setMessage("تاریخ صدور معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
+      setMessage("سال و ماه گزارش را درست انتخاب کنید.");
       return;
     }
 
@@ -396,6 +414,22 @@ export default function InvoiceBuilderPage() {
                   شماره جدید
                 </button>
               </div>
+            </label>
+            <label className="block">
+              <span className="label">سال گزارش</span>
+              <select value={reportYear} onChange={(e) => setReportYear(e.target.value)} className="input" aria-label="سال گزارش فاکتور">
+                {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
+                  <option key={year} value={year}>{year.replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[Number(digit)])}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="label">ماه گزارش</span>
+              <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="input" aria-label="ماه گزارش فاکتور">
+                {["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"].map((name, index) => (
+                  <option key={name} value={String(index + 1)}>{name}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="label">تاریخ صدور</span>

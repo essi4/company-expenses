@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { calculateMissionTotals, type MissionLocation, type MissionRow, type MissionStatus } from "../../lib/mission";
-import { monthKeyFromJalaliDate } from "@/lib/month-key";
 
 type SignatureData = { name: string; image: string; signedAt: string };
 type SignatureMap = { preparer: SignatureData; approver: SignatureData; approval: SignatureData };
@@ -100,7 +99,6 @@ export default function MissionReportPage() {
   const monthSelection = parseMonthSelection(month, issuedAt);
   const updateReportMonth = (year: string, monthIndex: number) => {
     setMonth(`${jalaliMonthNames[monthIndex]} ${toPersianDigits(year)}`);
-    setIssuedAt(`${toPersianDigits(year)}/${toPersianDigits(String(monthIndex + 1).padStart(2, "0"))}/۰۱`);
   };
 
   useEffect(() => {
@@ -142,8 +140,7 @@ export default function MissionReportPage() {
       const names = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
       if (/^14\d{2}$/.test(year) && index >= 0 && index < 12) {
         const label = `${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`;
-        setMonth(label);
-        setIssuedAt(`${year}/${String(Number(monthNumber)).padStart(2, "0")}/01`);
+        setMonth(`${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`);
       }
       setHasLocalDraft(false);
       return;
@@ -196,10 +193,13 @@ export default function MissionReportPage() {
 
   const saveDraft = async () => {
     const draft = snapshot();
-    const requestedMonth = searchParams.get("month");
-    const monthKey = requestedMonth && /^14\d{2}-\d{2}$/.test(requestedMonth) ? requestedMonth : monthKeyFromJalaliDate(issuedAt);
+    const selectedYear = normalizeDigits(monthSelection.year);
+    const selectedMonth = monthSelection.monthIndex + 1;
+    const monthKey = /^14\d{2}$/.test(selectedYear) && selectedMonth >= 1 && selectedMonth <= 12
+      ? `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`
+      : "";
     if (!monthKey) {
-      setMessage("تاریخ تنظیم معتبر نیست؛ نمونه: ۱۴۰۵/۰۷/۱۰");
+      setMessage("سال و ماه گزارش را درست انتخاب کنید.");
       return;
     }
 
@@ -357,29 +357,30 @@ export default function MissionReportPage() {
             <Field label="زیرعنوان" value={subtitle} onChange={setSubtitle} />
             <Field label="شماره سند" value={documentNumber} onChange={setDocumentNumber} />
             <Field label="تاریخ تنظیم" value={issuedAt} onChange={setIssuedAt} />
-            <div className="block">
-              <span className="label">ماه کارکرد (شمسی)</span>
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={String(monthSelection.monthIndex)}
-                  onChange={(e) => updateReportMonth(monthSelection.year, Number(e.target.value))}
-                  className="input"
-                  aria-label="انتخاب ماه جلالی"
-                >
-                  {jalaliMonthNames.map((name, index) => <option key={name} value={index}>{name}</option>)}
-                </select>
-                <select
-                  value={monthSelection.year}
-                  onChange={(e) => updateReportMonth(e.target.value, monthSelection.monthIndex)}
-                  className="input"
-                  aria-label="انتخاب سال جلالی"
-                >
-                  {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
-                    <option key={year} value={year}>{toPersianDigits(year)}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            <label className="block">
+              <span className="label">ماه گزارش</span>
+              <select
+                value={String(monthSelection.monthIndex)}
+                onChange={(e) => updateReportMonth(monthSelection.year, Number(e.target.value))}
+                className="input"
+                aria-label="ماه گزارش مأموریت"
+              >
+                {jalaliMonthNames.map((name, index) => <option key={name} value={index}>{name}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="label">سال گزارش</span>
+              <select
+                value={monthSelection.year}
+                onChange={(e) => updateReportMonth(e.target.value, monthSelection.monthIndex)}
+                className="input"
+                aria-label="سال گزارش مأموریت"
+              >
+                {Array.from({ length: 26 }, (_, index) => String(1390 + index)).map((year) => (
+                  <option key={year} value={year}>{toPersianDigits(year)}</option>
+                ))}
+              </select>
+            </label>
             <label className="block sm:col-span-2 lg:col-span-4">
               <span className="label">توضیحات / یادداشت</span>
               <textarea value={note} onChange={(e) => setNote(e.target.value)} className="input min-h-20 resize-y" placeholder="اگر لازم است توضیح یا مورد دیگری به گزارش مأموریت اضافه شود، اینجا بنویسید." />
