@@ -71,32 +71,32 @@ export default function DashboardPage() {
   const yearLabel = (year: string) => year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)]);
 
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
-        <header className="mb-6 rounded-3xl bg-slate-900 p-6 text-white shadow-sm">
-          <p className="text-sm font-bold text-slate-300">داشبورد مالی و عملیاتی</p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+    <main dir="rtl" className="min-h-screen bg-gradient-to-b from-slate-50 to-cyan-50/40 text-slate-900">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        <header className="relative mb-6 overflow-hidden rounded-[2rem] bg-gradient-to-l from-slate-950 via-cyan-950 to-teal-800 p-6 text-white shadow-xl shadow-cyan-950/10 sm:p-8">
+          <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-cyan-100">داشبورد مالی و عملیاتی</p>
+          <div className="relative z-10 mt-1 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black">{company?.name || "شرکت"}</h1>
-              <p className="mt-1 text-sm text-slate-300">گزارش‌ها بر اساس ماه دسته‌بندی شده‌اند.</p>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{company?.name || "شرکت"}</h1>
+              <p className="mt-2 text-sm leading-7 text-cyan-100/85">نمای یکپارچهٔ هزینه‌ها، فاکتورها و عملکرد مأموریت‌ها در هر ماه</p>
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="rounded-xl bg-white/10 px-4 py-2 text-sm font-bold ring-1 ring-white/15"
+              className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold backdrop-blur transition hover:bg-white/15"
             >
               ↻ بروزرسانی
             </button>
           </div>
         </header>
 
-        <section className="mb-6 grid gap-3 sm:grid-cols-2">
-          <a href="/invoice-builder" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5">
-            <div className="text-2xl">🧾</div>
+        <section className="mb-8 grid gap-4 sm:grid-cols-2">
+          <a href="/invoice-builder" className="group flex items-center gap-4 rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-teal-200 hover:shadow-lg hover:shadow-teal-900/5 sm:p-6">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-3xl ring-1 ring-teal-100">🧾</div>
             <h2 className="mt-2 text-lg font-black">ساخت فاکتور</h2>
             <p className="mt-1 text-sm text-slate-500">ثبت و چاپ فاکتور هزینه‌های اجرایی</p>
           </a>
-          <a href="/mission-report" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5">
-            <div className="text-2xl">🧭</div>
+          <a href="/mission-report" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-md transition hover:-translate-y-0.5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-3xl ring-1 ring-sky-100">🧭</div>
             <h2 className="mt-2 text-lg font-black">گزارش مأموریت</h2>
             <p className="mt-1 text-sm text-slate-500">ثبت و چاپ گزارش نفر-روز</p>
           </a>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
         <section>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-black">گزارش‌های ماهانه</h2>
+              <h2 className="text-xl font-black tracking-tight">گزارش‌های ماهانه</h2>
               <p className="text-xs text-slate-500">ابتدا سال را انتخاب کن، سپس ماه موردنظر را باز کن.</p>
             </div>
             <label className="flex items-center gap-2 text-sm font-black">
@@ -114,7 +114,7 @@ export default function DashboardPage() {
                 value={selectedYear}
                 onChange={(event) => setSelectedYear(event.target.value)}
                 disabled={years.length === 0}
-                className="min-w-28 rounded-xl bg-white px-4 py-2.5 text-sm font-black shadow-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-slate-400"
+                className="min-w-28 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-black shadow-sm outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
                 aria-label="انتخاب سال"
               >
                 {years.map((year) => (
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           ) : (
             <>
               <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 p-4">
                   <div className="text-xs font-bold text-slate-500">فاکتور</div>
                   <div className="mt-1 font-black">{yearInvoiceCount.toLocaleString("fa-IR")}</div>
                 </div>
@@ -162,12 +162,12 @@ export default function DashboardPage() {
                   <p className="mt-1 text-sm text-slate-500">از همین سال اولین فاکتور یا گزارش مأموریت را ثبت کن.</p>
                 </div>
               ) : (
-                <div className="grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {visibleMonths.map((month) => (
                     <a
                       key={month.month_key}
                       href={"/month/" + month.month_key}
-                      className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-slate-300"
+                      className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
