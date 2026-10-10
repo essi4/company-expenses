@@ -139,7 +139,6 @@ export default function MissionReportPage() {
       const index = Number(monthNumber) - 1;
       const names = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
       if (/^14\d{2}$/.test(year) && index >= 0 && index < 12) {
-        const label = `${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`;
         setMonth(`${names[index]} ${year.replace(/\d/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[Number(d)])}`);
       }
       setHasLocalDraft(false);
