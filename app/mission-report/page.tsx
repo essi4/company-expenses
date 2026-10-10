@@ -105,6 +105,16 @@ export default function MissionReportPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const year = params.get("year");
+    const monthNumber = Number(params.get("month"));
+    if (!year || !/^\\d{4}$/.test(year) || !Number.isInteger(monthNumber) || monthNumber < 1 || monthNumber > 12) return;
+    const names = ["فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور", "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"];
+    setMonth(`${names[monthNumber - 1]} ${year}`);
+    setIssuedAt(`${year}/${String(monthNumber).padStart(2, "0")}/01`);
+  }, []);
+
   const snapshot = (): Draft => ({ company, subtitle, documentNumber, issuedAt, status, month, note, rows, signatures });
 
   const startEditing = () => {
