@@ -300,13 +300,13 @@ export default function MissionReportPage() {
   };
 
   return (
-    <main dir="rtl" className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto max-w-6xl px-4 py-5 print:max-w-none print:px-0 print:py-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
+    <main dir="rtl" className="mission-app min-h-screen text-slate-900">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:px-0 print:py-0">
+        <div className="mission-toolbar mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 print:hidden">
           <div>
-            <p className="text-xs font-bold text-slate-500">مدیریت عملیات شرکت</p>
-            <h1 className="text-2xl font-black">گزارش مأموریت</h1>
-            <p className="mt-1 text-xs text-slate-500">{hasLocalDraft ? "پیش‌نویس محلی موجود است" : "گزارش جدید"}{message ? ` · ${message}` : ""}</p>
+            <p className="text-xs font-extrabold tracking-wide text-teal-700">مدیریت عملیات شرکت</p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">گزارش مأموریت</h1>
+            <p className="mt-2 text-xs leading-6 text-slate-500">{hasLocalDraft ? "پیش‌نویس محلی موجود است" : "گزارش جدید"}{message ? ` · ${message}` : ""}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => (window.location.href = "/")} className="rounded-xl bg-white px-4 py-2 font-bold ring-1 ring-slate-200">
@@ -328,7 +328,7 @@ export default function MissionReportPage() {
         </div>
 
         {isEditing && (
-          <section className="mb-4 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 print:hidden sm:grid-cols-2 lg:grid-cols-4">
+          <section className="mission-editor mb-6 grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 sm:p-6 lg:grid-cols-4 print:hidden">
             <Field label="نام شرکت" value={company} onChange={setCompany} />
             <Field label="زیرعنوان" value={subtitle} onChange={setSubtitle} />
             <Field label="شماره سند" value={documentNumber} onChange={setDocumentNumber} />
@@ -349,8 +349,8 @@ export default function MissionReportPage() {
           </section>
         )}
 
-        <article ref={reportRef} className="mission-paper bg-white p-5 shadow-sm ring-1 ring-slate-200 print:shadow-none print:ring-0 sm:p-8">
-          <header className="flex flex-col gap-4 border-b-2 border-slate-900 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <article ref={reportRef} className="mission-paper overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60 sm:p-8 lg:p-10 print:rounded-none print:border-0 print:shadow-none">
+          <header className="mission-document-header flex flex-col gap-5 border-b-2 border-teal-700 pb-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-2xl font-black">{company}</h2>
               <p className="mt-1 text-sm font-bold text-slate-600">{subtitle}</p>
@@ -362,7 +362,7 @@ export default function MissionReportPage() {
             </div>
           </header>
 
-          <div className="my-5 text-center">
+          <div className="mission-document-title my-7 rounded-2xl bg-slate-50 px-4 py-5 text-center sm:my-8">
             <h3 className="text-xl font-black">فرم گزارش اضافه‌کاری و مأموریت</h3>
             <p className="mt-1 text-sm text-slate-500">لیست کارکرد پرسنل — {month}</p>
           </div>
@@ -374,10 +374,10 @@ export default function MissionReportPage() {
             </section>
           )}
 
-          <div className="overflow-x-auto">
+          <div className="mission-table-wrap overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full border-collapse text-sm mission-table">
               <thead>
-                <tr className="bg-slate-900 text-white">
+                <tr className="bg-slate-800 text-white">
                   <th className="border p-2">ردیف</th>
                   <th className="border p-2">نام و نام خانوادگی</th>
                   <th className="border p-2">مدت (روز)</th>
@@ -394,7 +394,7 @@ export default function MissionReportPage() {
                       {isEditing ? <input value={row.personName} onChange={(e) => updateRow(row.id, { personName: e.target.value })} className="input" placeholder="نام و نام خانوادگی" /> : <span className="block p-1">{row.personName || "—"}</span>}
                     </td>
                     <td data-label="مدت (روز)" className="border p-1 align-top">
-                      {isEditing ? <input inputMode="numeric" type="number" min={0} value={row.days} onChange={(e) => updateRow(row.id, { days: Math.max(0, Number(e.target.value) || 0) })} className="input text-center" /> : <span className="block p-1 text-center">{money(row.days)} روز</span>}
+                      <span className="block p-1 text-center">{money(row.locations.reduce((sum, location) => sum + Math.max(0, Math.trunc(location.days || 0)), 0))} روز</span>
                     </td>
                     <td data-label="محل مأموریت(ها)" className="border p-1 align-top">
                       <div className="space-y-2">
@@ -439,7 +439,7 @@ export default function MissionReportPage() {
             </table>
           </div>
 
-          <section className="mt-10 border-t border-dashed pt-5">
+          <section className="mt-10 border-t border-dashed border-slate-300 pt-6">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
                 <h4 className="font-black">امضا و تأیید</h4>
@@ -447,7 +447,7 @@ export default function MissionReportPage() {
               </div>
               {isEditing && <span className="text-xs font-bold text-amber-700">امضای تأییدکننده و تصویب در این مرحله به‌صورت جای امضا باقی می‌ماند.</span>}
             </div>
-            <div className="grid gap-5 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               <SignaturePad label="تنظیم‌کننده" value={signatures.preparer} editing={isEditing} onChange={(patch) => updateSignature("preparer", patch)} onClear={() => clearSignature("preparer")} />
               <SignaturePlaceholder label="تأییدکننده (مدیر پروژه / سرپرست)" />
               <SignaturePlaceholder label="تصویب (مدیریت عامل / امور مالی)" />
@@ -459,10 +459,33 @@ export default function MissionReportPage() {
       </div>
 
       <style jsx global>{`
-        .label { display:block; margin-bottom:.35rem; font-size:.75rem; font-weight:700; color:#475569; }
-        .input { width:100%; border-radius:.75rem; border:1px solid #e2e8f0; background:#fff; padding:.7rem .8rem; outline:none; }
-        .input:focus { border-color:#0f766e; box-shadow:0 0 0 3px rgba(15,118,110,.1); }
+        .mission-app { background: radial-gradient(ellipse at top right, #dff7f2 0, #f4f7fb 38rem, #f1f5f9 100%); }
+        .label { display:block; margin-bottom:.45rem; font-size:.78rem; font-weight:800; color:#334155; }
+        .input { width:100%; min-height:44px; border-radius:.8rem; border:1px solid #dbe4ee; background:#fff; padding:.72rem .9rem; color:#0f172a; outline:none; transition:border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+        .input:hover { border-color:#b7c7d8; }
+        .input:focus { border-color:#0f9488; box-shadow:0 0 0 4px rgba(13,148,136,.12); }
+        .mission-toolbar button { min-height:42px; border-radius:.8rem; transition:transform .15s ease, filter .15s ease, box-shadow .15s ease; }
+        .mission-toolbar button:hover { filter:brightness(.97); box-shadow:0 3px 10px rgba(15,23,42,.08); }
+        .mission-toolbar button:active { transform:translateY(1px); }
+        .mission-table { min-width:720px; }
+        .mission-table th { border-color:#475569; padding:.85rem .7rem; font-weight:800; white-space:nowrap; }
+        .mission-table td { border-color:#e2e8f0; padding:.8rem .65rem; line-height:1.8; }
+        .mission-table tbody tr:nth-child(even):not(.mission-total-row) { background:#f8fafc; }
+        .mission-table tbody tr:hover:not(.mission-total-row) { background:#f0fdfa; }
+        .mission-total-row { background:#eaf7f5 !important; }
+        .mission-total-row td { border-color:#c4e6e1; }
+        .mission-document-title h3 { color:#0f3d3a; }
+        .mission-document-header h2 { color:#0f3d3a; }
+        .mission-editor { border-top:3px solid #0f9488; }
         canvas { touch-action: none; }
+        @media (max-width: 640px) {
+          .mission-app > div { padding-top:1rem; }
+          .mission-paper { padding:1rem; border-radius:1rem; }
+          .mission-document-header { gap:1rem; }
+          .mission-document-title { padding:1rem .75rem; }
+          .mission-document-title h3 { font-size:1.05rem; line-height:1.8; }
+          .mission-table { min-width:680px; font-size:.78rem; }
+        }
         @media print {
           @page { size: A4; margin: 10mm; }
           body { background:#fff !important; }
@@ -523,6 +546,7 @@ function SignaturePad({
     const ratio = Math.max(1, window.devicePixelRatio || 1);
     const width = Math.max(280, canvas.clientWidth);
     const height = 130;
+    // Resizing the canvas clears any stale strokes before restoring saved data.
     canvas.width = width * ratio;
     canvas.height = height * ratio;
     const ctx = canvas.getContext("2d");
@@ -537,7 +561,7 @@ function SignaturePad({
       image.onload = () => ctx.drawImage(image, 0, 0, width, height);
       image.src = value.image;
     }
-  }, [editing]);
+  }, [editing, value.image]);
 
   const point = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
