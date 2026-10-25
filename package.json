@@ -18,7 +18,9 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "d1:verify:local": "npx wrangler@4.135.0 d1 migrations apply company-expenses --local && npx wrangler@4.135.0 d1 execute company-expenses --local --command=\"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' ORDER BY name;\""
+    "d1:verify:local": "npx wrangler@4.135.0 d1 migrations apply company-expenses --local && npx wrangler@4.135.0 d1 execute company-expenses --local --command=\"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_cf_%' ORDER BY name;\"",
+    "dev:local": "LOCAL_MODE=true next dev -H 127.0.0.1",
+    "start:local": "LOCAL_MODE=true next start -H 127.0.0.1"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
