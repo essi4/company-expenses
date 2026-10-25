@@ -141,8 +141,13 @@ function createLocalSqlite(): D1Database {
 }
 
 /** Select local SQLite only when explicitly enabled; cloud behavior stays unchanged. */
+let localDb: D1Database | undefined;
+
 export function getDb(): D1Database {
-  if (process.env.LOCAL_MODE === "true") return createLocalSqlite();
+  if (process.env.LOCAL_MODE === "true") {
+    localDb ??= createLocalSqlite();
+    return localDb;
+  }
 
   try {
     const ctx = getCloudflareContext();
