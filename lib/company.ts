@@ -7,22 +7,31 @@ type MembershipRow = {
 };
 
 export async function getCompanyContext() {
-  const supabase = await createClient();
-  const { data: claims, error: claimsError } =
-    await supabase.auth.getClaims();
+  // Local mode is intended for a single-user app bound to 127.0.0.1 in Termux.
+  // It avoids network authentication and never contacts Supabase.
+  if (process.env.LOCAL_MODE === "true") {
+    const db = getDb();
+    const company = await db
+      .prepare("SELECT id FROM companies WHERE id = 1 LIMIT 1")
+      .first<{ id: number }>();
 
-  const userId = claims?.claims?.sub;
-  if (claimsError || !userId) {
     return {
-      supabase,
-      userId: null,
-      companyId: null,
-      role: null,
+      supabase: null as any,
+      userId: "local-user",
+      companyId: company ? Number(company.id) : null,
+      role: "owner",
     };
   }
 
-  const db = getDb();
-  const member = await db
+  const supabase = await createClient();
+  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+  const userId = claims?.claims?.sub;
+
+  if (claimsError || !userId) {
+    return { supabase, userId: null, companyId: null, role: null };
+  }
+
+  const member = await getDb()
     .prepare(
       `SELECT company_id, role
        FROM company_members
@@ -34,12 +43,7 @@ export async function getCompanyContext() {
     .first<MembershipRow>();
 
   if (!member) {
-    return {
-      supabase,
-      userId,
-      companyId: null,
-      role: null,
-    };
+    return { supabase, userId, companyId: null, role: null };
   }
 
   return {
