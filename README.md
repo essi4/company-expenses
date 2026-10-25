@@ -1,93 +1,42 @@
 # Company Expenses
 
-This is a [Next.js](https://nextjs.org) application deployed to Cloudflare Workers.
+برنامهٔ فارسی مدیریت هزینه‌ها، خریدها، پرداخت‌ها، فاکتورها و گزارش مأموریت.
 
-## Runtime architecture
+## اجرای شخصی روی گوشی با Termux
 
-- **Cloudflare Workers + OpenNext** run the Next.js application.
-- **Cloudflare D1** stores company and financial application data.
-- **Supabase Auth** remains responsible for authentication and session cookies.
-- **Supabase Storage** remains responsible for invoice images during the staged migration.
-- The application resolves the authenticated user's company membership through D1 and scopes financial queries by `company_id`.
+این حالت از SQLite روی خود گوشی استفاده می‌کند؛ برای ثبت و خواندن اطلاعات به Supabase یا Cloudflare نیاز ندارد.
 
-## Local development
-
-Run the normal Next.js development server:
+پیش‌نیاز: Node.js نسخهٔ 22.13 یا جدیدتر (Node.js 24 پیشنهاد می‌شود).
 
 ```bash
 npm install
-npm run dev
+npm run dev:local
 ```
 
-Cloudflare bindings are initialized for local development through OpenNext.
+سپس روی همان گوشی در مرورگر باز کن:
 
-To validate the D1 schema locally:
-
-```bash
-npm run d1:verify:local
+```
+http://127.0.0.1:3000
 ```
 
-## Cloudflare Workers preview
+- سرور عمداً فقط روی `127.0.0.1` گوش می‌دهد؛ آن را روی `0.0.0.0` منتشر نکن، چون حالت محلی ورود ابری ندارد.
+- پایگاه داده به‌صورت خودکار در `data/company-expenses.sqlite` ساخته می‌شود.
+- تصاویر فاکتورها در `data/uploads/` ذخیره می‌شوند.
+- برای تعیین نام شرکت می‌توان پیش از اجرا مقدار `LOCAL_COMPANY_NAME` را تنظیم کرد.
+- برای پشتیبان‌گیری، ابتدا سرور را متوقف کن و سپس از پوشهٔ `data` یک کپی امن بگیر. فایل‌های دیتابیس را هنگام اجرای سرور کپی نکن.
+- برای استفادهٔ شخصی نیازی به ساخت حساب Supabase یا تعریف کلیدهای Cloudflare نیست.
 
-Build and preview the app in the Workers runtime:
+## اجرای حالت ابری موجود
 
-```bash
-npm run preview
-```
+حالت ابری قبلی جداگانه حفظ شده است. برای اجرای آن از فرمان‌های معمول `npm run dev`، `npm run preview` و در صورت تأیید نهایی `npm run deploy` استفاده می‌شود. حالت ابری همچنان به Supabase Auth و Cloudflare D1 وابسته است.
 
-The production deploy command is deliberately separate:
+## دیتابیس محلی
 
-```bash
-npm run deploy
-```
+حالت محلی مهاجرت‌های SQL موجود را یک‌بار روی فایل SQLite اجرا می‌کند و شرکت پیش‌فرض را با شناسهٔ 1 می‌سازد. مهاجرت‌ها داده‌های ابری را دریافت یا حذف نمی‌کنند و هیچ تغییری در دیتابیس Production ایجاد نمی‌شود.
 
-Do not run the production deploy until the feature branch, tests, D1 remote verification, and merge are complete.
+## نکات امنیتی
 
-## D1 migrations
-
-The migration history is:
-
-- `migrations/0001_init.sql` — original D1 baseline.
-- `migrations/0002_d1_company_finance.sql` — complete company/finance schema used by the application.
-
-List and apply locally:
-
-```bash
-npm run d1:migrations:list:local
-npm run d1:migrate:local
-```
-
-Inspect remote state:
-
-```bash
-npm run d1:migrations:list:remote
-```
-
-Remote migrations are gated in GitHub Actions. The repository must contain the real D1 UUID and the Cloudflare GitHub secrets before a remote action can proceed.
-
-## One-time Supabase → D1 data import
-
-The application code no longer reads business data from Supabase, so existing business records must be copied to D1 before the final production cutover.
-
-The importer is intentionally separate from schema migrations:
-
-```bash
-CONFIRM_D1_DATA_IMPORT=IMPORT-D1-DATA \
-SUPABASE_URL=... \
-SUPABASE_SERVICE_ROLE_KEY=... \
-CLOUDFLARE_ACCOUNT_ID=... \
-CLOUDFLARE_API_TOKEN=... \
-npm run d1:import:supabase
-```
-
-The importer upserts the current application tables and preserves their existing numeric IDs. It does not delete data from Supabase.
-
-For GitHub Actions, use the dedicated manual workflow and store the credentials as encrypted repository secrets. Never commit service-role keys or generated SQL containing production data.
-
-## Security and migration rules
-
-- Work on a feature branch; do not modify `master` directly.
-- Keep production D1 operations explicitly gated.
-- Never commit Cloudflare API tokens, Supabase service-role keys, `.dev.vars`, or exported production data.
-- Future schema changes must be additive numbered migrations.
-- Production deployment happens only once after the feature branch is verified and merged.
+- فایل `data/` و فایل‌های محیطی نباید به Git اضافه شوند.
+- حالت محلی احراز هویت ابری ندارد و فقط برای استفادهٔ شخصی روی همان گوشی است.
+- تا وقتی انتقال داده‌ها جداگانه بررسی نشده، اطلاعات قبلی Supabase یا Cloudflare به‌صورت خودکار منتقل نمی‌شوند.
+- اجرای Production deploy مستقل از اجرای محلی است و نباید برای آزمایش محلی انجام شود.
