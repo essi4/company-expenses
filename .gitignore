@@ -40,7 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Local SQLite database
+# Local-only database and invoice files (never commit personal financial data)
+/data/
 company-expenses.db
 company-expenses.db-shm
 company-expenses.db-wal
